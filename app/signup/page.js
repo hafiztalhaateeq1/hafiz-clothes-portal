@@ -18,6 +18,72 @@ function isBlank(value) {
   return !String(value ?? "").trim();
 }
 
+const PK_PHONE_REGEX = /^03[0-9]{9}$/;
+
+function validateFullName(value) {
+  const v = String(value ?? "").trim();
+  if (!v) return "Full Name is required.";
+  if (!/^[A-Za-z ]+$/.test(v)) return "Only letters and spaces are allowed.";
+  if (v.length < 3) return "Please enter a valid full name.";
+  return "";
+}
+
+function validateBusinessName(value) {
+  const v = String(value ?? "").trim();
+  if (!v) return "Shop/Business Name is required.";
+  if (!/^[A-Za-z ]+$/.test(v)) return "Only letters and spaces are allowed.";
+  if (v.length < 2) return "Please enter a valid business name.";
+  return "";
+}
+
+function validateUsername(value) {
+  const v = String(value ?? "").trim();
+  if (!v) return "Username is required.";
+  if (!/^[A-Za-z0-9_.-]{3,30}$/.test(v)) {
+    return "Use 3-30 characters (letters, numbers, . _ -).";
+  }
+  return "";
+}
+
+function validatePhone(value) {
+  const v = String(value ?? "").trim();
+  if (!v) return "Phone Number is required.";
+  if (!v.startsWith("03")) return "Please enter a valid 11-digit number starting with 03";
+  if (v.length !== 11) return "Please enter a valid 11-digit number starting with 03";
+  if (!PK_PHONE_REGEX.test(v)) return "Please enter a valid 11-digit number starting with 03";
+  return "";
+}
+
+function validateEmail(value) {
+  const v = String(value ?? "").trim();
+  if (!v) return "Email is required.";
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Please enter a valid email address.";
+  return "";
+}
+
+function validatePassword(value) {
+  const v = String(value ?? "");
+  if (!v.trim()) return "Password is required.";
+  if (v.length < 8) return "Password must be at least 8 characters.";
+
+  const variety =
+    (/[a-z]/.test(v) ? 1 : 0) +
+    (/[A-Z]/.test(v) ? 1 : 0) +
+    (/\d/.test(v) ? 1 : 0) +
+    (/[^a-zA-Z0-9]/.test(v) ? 1 : 0);
+
+  if (variety < 2) return "Use a stronger password (mix letters and numbers).";
+  return "";
+}
+
+function validateConfirmPassword(password, confirm) {
+  const a = String(password ?? "");
+  const b = String(confirm ?? "");
+  if (!b.trim()) return "Please confirm your password.";
+  if (a !== b) return "Passwords do not match.";
+  return "";
+}
+
 export default function SignupPage() {
   const router = useRouter();
   const [step, setStep] = useState("select"); // select | form
@@ -28,6 +94,7 @@ export default function SignupPage() {
     phone: "",
     email: "",
     password: "",
+    confirmPassword: "",
     businessName: "",
   });
   const [errorMessage, setErrorMessage] = useState("");
@@ -40,56 +107,11 @@ export default function SignupPage() {
     phone: "",
     email: "",
     password: "",
+    confirmPassword: "",
     businessName: "",
   });
 
-  function validateFullName(value) {
-    const v = String(value ?? "").trim();
-    if (!v) return "Full Name is required.";
-    if (!/^[A-Za-z ]+$/.test(v)) return "Only letters and spaces are allowed.";
-    if (v.length < 3) return "Please enter a valid full name.";
-    return "";
-  }
 
-  function validateBusinessName(value) {
-    const v = String(value ?? "").trim();
-    if (!v) return "Shop/Business Name is required.";
-    if (!/^[A-Za-z ]+$/.test(v)) return "Only letters and spaces are allowed.";
-    if (v.length < 2) return "Please enter a valid business name.";
-    return "";
-  }
-
-  function validateUsername(value) {
-    const v = String(value ?? "").trim();
-    if (!v) return "Username is required.";
-    if (!/^[A-Za-z0-9_.-]{3,30}$/.test(v)) {
-      return "Use 3-30 characters (letters, numbers, . _ -).";
-    }
-    return "";
-  }
-
-  function validatePhone(value) {
-    const v = String(value ?? "").trim();
-    if (!v) return "Phone Number is required.";
-    if (!v.startsWith("03")) return "Please enter a valid 11-digit number starting with 03";
-    if (v.length !== 11) return "Please enter a valid 11-digit number starting with 03";
-    if (!/^03\d{9}$/.test(v)) return "Please enter a valid 11-digit number starting with 03";
-    return "";
-  }
-
-  function validateEmail(value) {
-    const v = String(value ?? "").trim();
-    if (!v) return "Email is required.";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Please enter a valid email address.";
-    return "";
-  }
-
-  function validatePassword(value) {
-    const v = String(value ?? "");
-    if (!v.trim()) return "Password is required.";
-    if (v.length < 8) return "Password must be at least 8 characters.";
-    return "";
-  }
 
   function passwordStrength(value) {
     const raw = String(value ?? "");
@@ -117,6 +139,7 @@ export default function SignupPage() {
       phone: validatePhone(form.phone),
       email: validateEmail(form.email),
       password: validatePassword(form.password),
+      confirmPassword: validateConfirmPassword(form.password, form.confirmPassword),
       businessName: selectedRole === "wholesale" ? validateBusinessName(form.businessName) : "",
     };
 
@@ -150,7 +173,9 @@ export default function SignupPage() {
       if (name === "phone") next.phone = validatePhone(nextValue);
       if (name === "email") next.email = validateEmail(nextValue);
       if (name === "password") next.password = validatePassword(nextValue);
+      if (name === "confirmPassword") next.confirmPassword = validateConfirmPassword(form.password, nextValue);
       if (name === "businessName") next.businessName = validateBusinessName(nextValue);
+      if (name === "password") next.confirmPassword = validateConfirmPassword(nextValue, form.confirmPassword);
 
       return next;
     });
@@ -173,6 +198,7 @@ export default function SignupPage() {
       phone: validatePhone(cleanedPhone),
       email: validateEmail(form.email),
       password: validatePassword(form.password),
+      confirmPassword: validateConfirmPassword(form.password, form.confirmPassword),
       businessName:
         selectedRole === "wholesale" ? validateBusinessName(form.businessName) : "",
     };
@@ -361,6 +387,7 @@ export default function SignupPage() {
                       : "pointer-events-none opacity-0 translate-y-2 h-0 overflow-hidden"
                   }`}
                   onSubmit={handleSubmit}
+                  noValidate
                 >
                   <label className="block">
                     <span className="sr-only">Full Name</span>
@@ -376,9 +403,9 @@ export default function SignupPage() {
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
                     </div>
-                    {fieldErrors.fullName ? (
-                      <p className="mt-1 text-xs text-red-700">{fieldErrors.fullName}</p>
-                    ) : null}
+                    <p className="mt-1 min-h-[14px] text-[11px] leading-tight text-red-700">
+                      {fieldErrors.fullName}
+                    </p>
                   </label>
 
                   <label className="block">
@@ -395,9 +422,9 @@ export default function SignupPage() {
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
                     </div>
-                    {fieldErrors.username ? (
-                      <p className="mt-1 text-xs text-red-700">{fieldErrors.username}</p>
-                    ) : null}
+                    <p className="mt-1 min-h-[14px] text-[11px] leading-tight text-red-700">
+                      {fieldErrors.username}
+                    </p>
                   </label>
 
                   <label className="block">
@@ -413,13 +440,12 @@ export default function SignupPage() {
                         placeholder="03XXXXXXXXX"
                         autoComplete="tel"
                         maxLength={11}
-                        pattern="03\\d{9}"
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
                     </div>
-                    {fieldErrors.phone ? (
-                      <p className="mt-1 text-xs text-red-700">{fieldErrors.phone}</p>
-                    ) : null}
+                    <p className="mt-1 min-h-[14px] text-[11px] leading-tight text-red-700">
+                      {fieldErrors.phone}
+                    </p>
                   </label>
 
                   {selectedRole === "wholesale" ? (
@@ -437,9 +463,9 @@ export default function SignupPage() {
                           className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                         />
                       </div>
-                      {fieldErrors.businessName ? (
-                        <p className="mt-1 text-xs text-red-700">{fieldErrors.businessName}</p>
-                      ) : null}
+                      <p className="mt-1 min-h-[14px] text-[11px] leading-tight text-red-700">
+                        {fieldErrors.businessName}
+                      </p>
                     </label>
                   ) : null}
 
@@ -457,9 +483,9 @@ export default function SignupPage() {
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
                     </div>
-                    {fieldErrors.email ? (
-                      <p className="mt-1 text-xs text-red-700">{fieldErrors.email}</p>
-                    ) : null}
+                    <p className="mt-1 min-h-[14px] text-[11px] leading-tight text-red-700">
+                      {fieldErrors.email}
+                    </p>
                   </label>
 
                   <label className="block">
@@ -484,9 +510,28 @@ export default function SignupPage() {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
-                    {fieldErrors.password ? (
-                      <p className="mt-1 text-xs text-red-700">{fieldErrors.password}</p>
-                    ) : null}
+                    <p className="mt-1 min-h-[14px] text-[11px] leading-tight text-red-700">
+                      {fieldErrors.password}
+                    </p>
+                  </label>
+
+                  <label className="block">
+                    <span className="sr-only">Confirm Password</span>
+                    <div className="relative">
+                      <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        name="confirmPassword"
+                        type={showPassword ? "text" : "password"}
+                        value={form.confirmPassword}
+                        onChange={handleChange}
+                        placeholder="Confirm Password"
+                        autoComplete="new-password"
+                        className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
+                      />
+                    </div>
+                    <p className="mt-1 min-h-[14px] text-[11px] leading-tight text-red-700">
+                      {fieldErrors.confirmPassword}
+                    </p>
                   </label>
 
                   {/* Strength meter */}

@@ -62,22 +62,22 @@ export default function LoginPage() {
         return;
       }
 
-      if (selectedRole === "management" && !form.password.trim()) {
-        setErrorMessage("Please enter your password to sign in.");
+      if (!form.identifier.trim() || !form.password.trim()) {
+        setErrorMessage("Please complete both fields to sign in.");
         return;
       }
 
       if (selectedRole !== "management") {
         const cleanedPhone = String(form.identifier ?? "").replace(/[^\d]/g, "");
-        if (!/^\d{11}$/.test(cleanedPhone)) {
-          setErrorMessage("Please enter a valid 11-digit phone number.");
+        if (!/^03\d{9}$/.test(cleanedPhone)) {
+          setErrorMessage("Please enter a valid 11-digit number starting with 03");
           return;
         }
       }
 
       const session = await login({
         identifier: form.identifier,
-        password: selectedRole === "management" ? form.password : "",
+        password: form.password,
         rememberMe,
       });
 
@@ -101,9 +101,9 @@ export default function LoginPage() {
     selectedRole === "management"
       ? { title: "Management", hint: "Use your username + password." }
       : selectedRole === "wholesale"
-        ? { title: "Wholesale Partner", hint: "Enter your registered phone number." }
+        ? { title: "Wholesale Partner", hint: "Use your phone + password." }
         : selectedRole === "retail"
-          ? { title: "Retail Customer", hint: "Enter your registered phone number." }
+          ? { title: "Retail Customer", hint: "Use your phone + password." }
           : { title: "Sign in", hint: "Select your access type to continue." };
 
   if (!hasMounted) {
@@ -213,7 +213,7 @@ export default function LoginPage() {
                       </span>
                       <span>
                         <span className="block text-sm font-bold text-[#241816]">Wholesale Partner</span>
-                        <span className="block text-xs text-gray-500">Phone number</span>
+                        <span className="block text-xs text-gray-500">Phone + password</span>
                       </span>
                     </span>
                     <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
@@ -232,7 +232,7 @@ export default function LoginPage() {
                       </span>
                       <span>
                         <span className="block text-sm font-bold text-[#241816]">Retail Customer</span>
-                        <span className="block text-xs text-gray-500">Phone number</span>
+                        <span className="block text-xs text-gray-500">Phone + password</span>
                       </span>
                     </span>
                     <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
@@ -263,37 +263,34 @@ export default function LoginPage() {
                           autoComplete="username"
                           inputMode={selectedRole === "management" ? undefined : "tel"}
                           maxLength={selectedRole === "management" ? undefined : 11}
-                          pattern={selectedRole === "management" ? undefined : "\\d{11}"}
                           className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                         />
                       </div>
                     </label>
 
-                    {selectedRole === "management" ? (
-                      <label className="block">
-                        <span className="sr-only">Password</span>
-                        <div className="relative">
-                          <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                          <input
-                            name="password"
-                            type={showPassword ? "text" : "password"}
-                            value={form.password}
-                            onChange={handleChange}
-                            placeholder="Password"
-                            autoComplete="current-password"
-                            className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-12 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword((value) => !value)}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-400 transition hover:text-[#800000] focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
-                            aria-label={showPassword ? "Hide password" : "Show password"}
-                          >
-                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                          </button>
-                        </div>
-                      </label>
-                    ) : null}
+                    <label className="block">
+                      <span className="sr-only">Password</span>
+                      <div className="relative">
+                        <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <input
+                          name="password"
+                          type={showPassword ? "text" : "password"}
+                          value={form.password}
+                          onChange={handleChange}
+                          placeholder="Password"
+                          autoComplete="current-password"
+                          className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-12 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword((value) => !value)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-400 transition hover:text-[#800000] focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </label>
 
                     <label className="flex items-center justify-between gap-3 pt-1 text-sm text-gray-600">
                       <span className="flex items-center gap-2">
@@ -315,7 +312,7 @@ export default function LoginPage() {
 
                     <button
                       type="submit"
-                      disabled={!form.identifier.trim() || isSubmitting}
+                      disabled={!form.identifier.trim() || !form.password.trim() || isSubmitting}
                       className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#800000] to-[#5b0303] text-sm font-bold text-white shadow-lg shadow-[#800000]/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
                     >
                       {isSubmitting ? "Signing in..." : "Sign In"}

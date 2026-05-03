@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -73,7 +74,7 @@ export async function POST(request) {
       return response;
     }
 
-    // Customers: phone-based lookup. (Password is optional for now.)
+    // Customers: phone-based lookup (password required).
     const phone = identifierRaw.replace(/[^\d]/g, "");
 
     if (!phone) {
@@ -83,12 +84,42 @@ export async function POST(request) {
       );
     }
 
-    const { data: client, error } = await supabase
+    if (!password) {
+      return NextResponse.json({ error: "Invalid Credentials" }, { status: 401 });
+    }
+
+    // Try to read a password field if it exists. We support either `password` (legacy)
+    // or `password_hash` (sha256 hex).
+    let lookup = await supabase
       .from("clients")
-      .select("id, name, phone, trust_level")
+      .select("id, name, phone, trust_level, password, password_hash")
       .eq("phone", phone)
       .limit(1)
       .maybeSingle();
+
+    if (lookup.error) {
+      const msg = String(lookup.error.message ?? "");
+
+      if (/password_hash/i.test(msg)) {
+        lookup = await supabase
+          .from("clients")
+          .select("id, name, phone, trust_level, password")
+          .eq("phone", phone)
+          .limit(1)
+          .maybeSingle();
+      }
+
+      if (lookup.error && /\bpassword\b/i.test(String(lookup.error.message ?? ""))) {
+        lookup = await supabase
+          .from("clients")
+          .select("id, name, phone, trust_level")
+          .eq("phone", phone)
+          .limit(1)
+          .maybeSingle();
+      }
+    }
+
+    const { data: client, error } = lookup;
 
     if (error) {
       return NextResponse.json(
@@ -101,6 +132,25 @@ export async function POST(request) {
       return NextResponse.json(
         { error: "Account not found. Please Sign Up first." },
         { status: 404 }
+      );
+    }
+
+    const storedHash = client?.password_hash ? String(client.password_hash) : "";
+    const storedPassword = client?.password ? String(client.password) : "";
+
+    if (storedHash) {
+      const sha = crypto.createHash("sha256").update(password, "utf8").digest("hex");
+      if (sha !== storedHash) {
+        return NextResponse.json({ error: "Invalid Credentials" }, { status: 401 });
+      }
+    } else if (storedPassword) {
+      if (password !== storedPassword) {
+        return NextResponse.json({ error: "Invalid Credentials" }, { status: 401 });
+      }
+    } else {
+      return NextResponse.json(
+        { error: "Password authentication is not configured for customer accounts yet." },
+        { status: 500 }
       );
     }
 
