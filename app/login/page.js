@@ -130,7 +130,7 @@ export default function LoginPage() {
                         type="text"
                         value={form.identifier}
                         onChange={handleChange}
-                        placeholder="Phone number or admin username"
+                        placeholder="Phone number or username"
                         autoComplete="username"
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
@@ -146,7 +146,7 @@ export default function LoginPage() {
                         type="password"
                         value={form.password}
                         onChange={handleChange}
-                        placeholder="Password (admin only)"
+                        placeholder="Password"
                         autoComplete="current-password"
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
@@ -161,7 +161,7 @@ export default function LoginPage() {
 
                   <button
                     type="submit"
-                    disabled={isSubmitting}
+                    disabled={!form.identifier.trim() || isSubmitting}
                     className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#800000] to-[#5b0303] text-sm font-bold text-white shadow-lg shadow-[#800000]/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {isSubmitting ? "Signing in..." : "Sign In"}

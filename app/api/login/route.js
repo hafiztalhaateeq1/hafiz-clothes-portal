@@ -35,6 +35,12 @@ export async function POST(request) {
 
     // Admin: username/email-style identifier + password.
     if (identifierRaw.toLowerCase() === expectedUsername) {
+      if (!password) {
+        return NextResponse.json(
+          { error: "Please enter your password to sign in." },
+          { status: 400 }
+        );
+      }
       if (password !== expectedPassword) {
         return NextResponse.json({ error: "Invalid admin credentials." }, { status: 401 });
       }
