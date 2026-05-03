@@ -1,0 +1,326 @@
+"use client";
+
+import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
+import {
+  CircleUserRound,
+  LogOut,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Settings,
+  X,
+} from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useAuth } from "@/app/ui/auth-provider";
+import { LanguageSwitcher, useLanguage } from "@/app/ui/language-provider";
+import { PortalNavigation } from "@/app/ui/portal-navigation";
+
+const SHOP_INFO = {
+  address:
+    "Gurdwara Gali No. 1, Pakistan Model High School Wali Gali, Rail Bazar, Faisalabad.",
+  contact: "0323-7869400",
+};
+
+export function PortalShell({ children }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { isAuthenticated, logout, session } = useAuth();
+  const { language, setLanguage, t, languages } = useLanguage();
+  const [mounted, setMounted] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isProfileOpen, setIsProfileOpen] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setMounted(true);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) {
+      return;
+    }
+
+    if (!isAuthenticated && pathname !== "/login") {
+      router.replace("/login");
+      return;
+    }
+
+    if (isAuthenticated && pathname === "/login") {
+      router.replace("/");
+    }
+  }, [isAuthenticated, mounted, pathname, router]);
+
+  const languageClass = mounted ? `language-${language}` : "language-en";
+  const roleLabel =
+    session?.role === "admin"
+      ? t.shell?.administrator ?? "Administrator"
+      : session?.role === "wholesale"
+        ? "Wholesale Customer"
+        : "Retail Customer";
+  const shellCopy = useMemo(
+    () => ({
+      settingsTitle: t.shell?.settingsTitle ?? "Settings",
+      language: t.shell?.language ?? "Language",
+      shopDetails: t.shell?.shopDetails ?? "Shop Details",
+      address: t.shell?.address ?? "Address",
+      contact: t.shell?.contact ?? "Contact",
+      close: t.shell?.close ?? "Close",
+      profile: t.shell?.profile ?? "Profile",
+      logout: t.shell?.logout ?? "Log Out",
+      administrator: t.shell?.administrator ?? "Administrator",
+    }),
+    [t]
+  );
+
+  if (!mounted) {
+    return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
+  }
+
+  if (pathname === "/login") {
+    return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
+  }
+
+  if (!isAuthenticated) {
+    return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
+  }
+
+  function handleLogout() {
+    logout();
+    router.replace("/login");
+  }
+
+  return (
+    <div className={`portal-shell-root ${languageClass}`}>
+      {isSettingsOpen ? (
+        <div
+          className="portal-overlay"
+          role="presentation"
+          onClick={() => setIsSettingsOpen(false)}
+        >
+          <div
+            className="portal-settings-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="portal-settings-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="portal-settings-head">
+              <div>
+                <p className="dashboard-eyebrow">{shellCopy.settingsTitle}</p>
+                <h2 id="portal-settings-title">{shellCopy.settingsTitle}</h2>
+              </div>
+              <button
+                type="button"
+                className="portal-settings-close"
+                onClick={() => setIsSettingsOpen(false)}
+                aria-label={shellCopy.close}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="portal-settings-section">
+              <span>{shellCopy.language}</span>
+              <div className="portal-settings-language">
+                {languages.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    className={`portal-settings-chip ${
+                      language === option.value ? "is-active" : ""
+                    }`}
+                    onClick={() => setLanguage(option.value)}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="portal-settings-section">
+              <span>{shellCopy.shopDetails}</span>
+              <div className="portal-settings-details">
+                <p>
+                  <strong>{shellCopy.address}:</strong> {SHOP_INFO.address}
+                </p>
+                <p>
+                  <strong>{shellCopy.contact}:</strong> {SHOP_INFO.contact}
+                </p>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      ) : null}
+
+      {isMobileSidebarOpen ? (
+        <button
+          type="button"
+          className="portal-sidebar-backdrop"
+          aria-label="Close navigation"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        />
+      ) : null}
+
+      <div className="portal-shell">
+        <aside
+          className={`portal-sidebar ${
+            isMobileSidebarOpen ? "portal-sidebar-open" : ""
+          } ${isCollapsed ? "portal-sidebar-collapsed" : ""}`}
+        >
+          <div className="portal-sidebar-top">
+            <div className={`portal-sidebar-brand ${isCollapsed ? "is-collapsed" : ""}`}>
+              <Image
+                src="/hch-logo.svg"
+                alt="HCH logo"
+                width={40}
+                height={40}
+                className="portal-logo-mark"
+                priority
+              />
+              {isCollapsed ? null : (
+                <div className="portal-logo-copy">
+                  <p className="portal-sidebar-title">HAFIZ CLOTHES HOUSE</p>
+                </div>
+              )}
+            </div>
+            <button
+              type="button"
+              className="portal-sidebar-dismiss"
+              onClick={() => setIsMobileSidebarOpen(false)}
+              aria-label="Close navigation"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          <div className="portal-sidebar-controls">
+            <PortalNavigation collapsed={isCollapsed} />
+          </div>
+
+          <div className={`portal-sidebar-bottom ${isCollapsed ? "is-collapsed" : ""}`}>
+            <div className="portal-sidebar-divider" aria-hidden="true" />
+            <button
+              type="button"
+              className={`portal-nav-link portal-sidebar-utility ${
+                isCollapsed ? "portal-nav-link-collapsed" : ""
+              }`}
+              onClick={() => {
+                setIsProfileOpen(false);
+                setIsSettingsOpen(true);
+              }}
+              title={isCollapsed ? t.nav.settings : undefined}
+            >
+              <span className="portal-nav-icon" aria-hidden="true">
+                <Settings size={18} strokeWidth={2.1} />
+              </span>
+              {!isCollapsed ? <span>{t.nav.settings}</span> : null}
+            </button>
+
+            <div className="portal-profile-wrap">
+              <button
+                type="button"
+                className={`portal-profile-card ${isCollapsed ? "is-collapsed" : ""}`}
+                onClick={() => setIsProfileOpen((currentValue) => !currentValue)}
+              >
+                <span className="portal-profile-avatar" aria-hidden="true">
+                  <CircleUserRound size={18} strokeWidth={2.1} />
+                </span>
+                {!isCollapsed ? (
+                  <div className="portal-profile-copy">
+                    <p className="portal-profile-name">{session?.displayName ?? "Hafiz Talha"}</p>
+                  </div>
+                ) : null}
+              </button>
+              {isProfileOpen ? (
+                <div className="portal-profile-popover" role="menu" aria-label={shellCopy.profile}>
+                  <span className="portal-role-badge">{shellCopy.administrator}</span>
+                  <button
+                    type="button"
+                    className="portal-popover-action"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={15} />
+                    <span>{shellCopy.logout}</span>
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </aside>
+
+        <div
+          className={`portal-main-wrap ${
+            isCollapsed ? "portal-main-wrap-collapsed" : ""
+          }`}
+        >
+          <header className="portal-topbar">
+            <div className="portal-topbar-brand">
+              <button
+                type="button"
+                className="portal-menu-button"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                aria-label="Open navigation"
+              >
+                <Menu size={18} />
+              </button>
+
+              <button
+                type="button"
+                className="portal-sidebar-toggle"
+                onClick={() => setIsCollapsed((currentState) => !currentState)}
+                aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                {isCollapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+              </button>
+
+              <div className="portal-topbar-copy">
+                <div className="portal-logo-lockup">
+                  <Image
+                    src="/hch-logo.svg"
+                    alt="HCH logo"
+                    width={48}
+                    height={48}
+                    className="portal-logo-mark"
+                    priority
+                  />
+                  <div className="portal-logo-copy">
+                    <p className="portal-topbar-kicker">Hafiz Clothes House</p>
+                    <h1>Hafiz Clothes House</h1>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="portal-topbar-actions">
+              <div className="portal-session-badge">
+                <strong>{session?.displayName ?? "User"}</strong>
+                <span>{roleLabel}</span>
+              </div>
+              <LanguageSwitcher />
+              <button
+                type="button"
+                className="portal-logout-button"
+                onClick={handleLogout}
+                aria-label="Sign out"
+              >
+                <LogOut size={16} />
+              </button>
+            </div>
+          </header>
+
+          <main className="portal-main">{children}</main>
+          <footer className="portal-footer">Hafiz Clothes House © 2026</footer>
+        </div>
+      </div>
+    </div>
+  );
+}
