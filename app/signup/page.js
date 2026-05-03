@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { LockKeyhole, Mail, Phone, UserRound } from "lucide-react";
+import { Handshake, LockKeyhole, Mail, Phone, Store, UserRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 function isBlank(value) {
@@ -11,6 +11,8 @@ function isBlank(value) {
 
 export default function SignupPage() {
   const router = useRouter();
+  const [step, setStep] = useState("select"); // select | form
+  const [selectedRole, setSelectedRole] = useState(null); // wholesale | retail
   const [form, setForm] = useState({
     fullName: "",
     phone: "",
@@ -39,6 +41,11 @@ export default function SignupPage() {
   async function handleSubmit(event) {
     event.preventDefault();
 
+    if (!selectedRole) {
+      setErrorMessage("Please choose an account type.");
+      return;
+    }
+
     if (!canSubmit) {
       setErrorMessage("Please complete all fields.");
       return;
@@ -63,9 +70,14 @@ export default function SignupPage() {
       <div aria-hidden="true" className="auth-blob auth-blob-1" />
       <div aria-hidden="true" className="auth-blob auth-blob-2" />
       <div aria-hidden="true" className="auth-blob auth-blob-3" />
-      <div aria-hidden="true" className="auth-watermark select-none">
-        HCH
-      </div>
+      <Image
+        aria-hidden="true"
+        src="/hch-logo.svg"
+        alt=""
+        width={76}
+        height={76}
+        className="auth-corner-logo"
+      />
 
       <div className="relative min-h-screen px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center justify-center">
@@ -118,12 +130,83 @@ export default function SignupPage() {
                       Hafiz Clothes House
                     </p>
                     <h2 className="truncate text-base font-[650] text-[#800000] sm:text-lg">
-                      Sign up
+                      {step === "select"
+                        ? "Choose account"
+                        : selectedRole === "wholesale"
+                          ? "Wholesale Partner"
+                          : "Retail Customer"}
                     </h2>
                   </div>
                 </div>
 
-                <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+                <p className="mt-3 text-sm text-[#5b3a3a]">
+                  {step === "select"
+                    ? "Select the account type that matches your relationship with the shop."
+                    : "Fill in your details to create the account."}
+                </p>
+
+                <div
+                  className={`mt-6 grid gap-3 transition-all duration-200 ${
+                    step === "select"
+                      ? "opacity-100 translate-y-0"
+                      : "pointer-events-none opacity-0 -translate-y-2 h-0 overflow-hidden"
+                  }`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRole("wholesale");
+                      setStep("form");
+                      setErrorMessage("");
+                    }}
+                    className="group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 text-left shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#800000]/10 text-[#800000]">
+                        <Handshake className="h-5 w-5" />
+                      </span>
+                      <span>
+                        <span className="block text-sm font-bold text-[#241816]">Wholesale Partner</span>
+                        <span className="block text-xs text-gray-500">For trusted buyers</span>
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
+                      Continue
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRole("retail");
+                      setStep("form");
+                      setErrorMessage("");
+                    }}
+                    className="group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 text-left shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#800000]/10 text-[#800000]">
+                        <Store className="h-5 w-5" />
+                      </span>
+                      <span>
+                        <span className="block text-sm font-bold text-[#241816]">Retail Customer</span>
+                        <span className="block text-xs text-gray-500">For everyday shopping</span>
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
+                      Continue
+                    </span>
+                  </button>
+                </div>
+
+                <form
+                  className={`mt-6 space-y-4 transition-all duration-200 ${
+                    step === "form"
+                      ? "opacity-100 translate-y-0"
+                      : "pointer-events-none opacity-0 translate-y-2 h-0 overflow-hidden"
+                  }`}
+                  onSubmit={handleSubmit}
+                >
                   <label className="block">
                     <span className="sr-only">Full Name</span>
                     <div className="relative">
@@ -203,15 +286,25 @@ export default function SignupPage() {
                     {isSubmitting ? "Creating..." : "Create Account"}
                   </button>
 
-                  <p className="pt-2 text-center text-sm text-gray-600">
-                    Already have an account?{" "}
+                  <div className="flex items-center justify-between pt-2 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStep("select");
+                        setSelectedRole(null);
+                        setErrorMessage("");
+                      }}
+                      className="rounded-lg px-2 py-1 font-semibold text-gray-600 transition hover:text-gray-900 hover:underline focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
+                    >
+                      Go Back
+                    </button>
                     <a
                       href="/login"
                       className="inline-flex items-center rounded-lg px-2 py-1 font-bold text-[#800000] transition hover:text-[#6f0000] hover:underline focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
                     >
                       Sign In
                     </a>
-                  </p>
+                  </div>
                 </form>
               </div>
             </div>
