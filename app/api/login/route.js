@@ -24,6 +24,7 @@ function inferCustomerRole(client) {
 export async function POST(request) {
   try {
     const body = await request.json();
+    const rememberMe = Boolean(body.rememberMe);
 
     const identifierRaw = String(body.identifier ?? body.email ?? body.phone ?? "").trim();
     const password = String(body.password ?? "");
@@ -45,13 +46,31 @@ export async function POST(request) {
         return NextResponse.json({ error: "Invalid admin credentials." }, { status: 401 });
       }
 
-      return NextResponse.json({
+      const response = NextResponse.json({
         session: {
           role: "admin",
           customerId: null,
           displayName: "Hafiz Talha",
         },
       });
+
+      const cookieValue = Buffer.from(
+        JSON.stringify({
+          role: "admin",
+          customerId: null,
+          displayName: "Hafiz Talha",
+        })
+      ).toString("base64url");
+
+      response.cookies.set("hch_session", cookieValue, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        ...(rememberMe ? { maxAge: 60 * 60 * 24 * 30 } : {}), // 30 days
+      });
+
+      return response;
     }
 
     // Customers: phone-based lookup. (Password is optional for now.)
@@ -87,14 +106,30 @@ export async function POST(request) {
 
     const effectiveRole = inferCustomerRole(client);
 
-    return NextResponse.json({
+    const session = {
+      role: effectiveRole,
+      customerId: String(client.id ?? ""),
+      displayName: client.name ?? "Customer",
+      phone: client.phone ?? phone,
+    };
+
+    const response = NextResponse.json({
       session: {
-        role: effectiveRole,
-        customerId: String(client.id ?? ""),
-        displayName: client.name ?? "Customer",
-        phone: client.phone ?? phone,
+        ...session,
       },
     });
+
+    const cookieValue = Buffer.from(JSON.stringify(session)).toString("base64url");
+
+    response.cookies.set("hch_session", cookieValue, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      ...(rememberMe ? { maxAge: 60 * 60 * 24 * 30 } : {}),
+    });
+
+    return response;
   } catch {
     return NextResponse.json(
       { error: "Unable to complete sign in right now." },

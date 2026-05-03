@@ -37,8 +37,7 @@ export function AuthProvider({ children }) {
 
   async function login(credentials) {
     const rememberMe = Boolean(credentials?.rememberMe);
-    const payload = { ...credentials };
-    delete payload.rememberMe;
+    const payload = { ...credentials, rememberMe };
 
     const response = await fetch("/api/login", {
       method: "POST",
@@ -82,6 +81,9 @@ export function AuthProvider({ children }) {
       window.localStorage.removeItem(STORAGE_KEY);
       window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
     }
+
+    // Best-effort: clear server-side auth cookie so middleware can stop treating the user as signed in.
+    fetch("/api/logout", { method: "POST" }).catch(() => {});
   }
 
   const value = useMemo(

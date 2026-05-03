@@ -34,6 +34,62 @@ export default function SignupPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState({
+    fullName: "",
+    username: "",
+    phone: "",
+    email: "",
+    password: "",
+    businessName: "",
+  });
+
+  function validateFullName(value) {
+    const v = String(value ?? "").trim();
+    if (!v) return "Full Name is required.";
+    if (!/^[A-Za-z ]+$/.test(v)) return "Only letters and spaces are allowed.";
+    if (v.length < 3) return "Please enter a valid full name.";
+    return "";
+  }
+
+  function validateBusinessName(value) {
+    const v = String(value ?? "").trim();
+    if (!v) return "Shop/Business Name is required.";
+    if (!/^[A-Za-z ]+$/.test(v)) return "Only letters and spaces are allowed.";
+    if (v.length < 2) return "Please enter a valid business name.";
+    return "";
+  }
+
+  function validateUsername(value) {
+    const v = String(value ?? "").trim();
+    if (!v) return "Username is required.";
+    if (!/^[A-Za-z0-9_.-]{3,30}$/.test(v)) {
+      return "Use 3-30 characters (letters, numbers, . _ -).";
+    }
+    return "";
+  }
+
+  function validatePhone(value) {
+    const v = String(value ?? "").trim();
+    if (!v) return "Phone Number is required.";
+    if (!v.startsWith("03")) return "Please enter a valid 11-digit number starting with 03";
+    if (v.length !== 11) return "Please enter a valid 11-digit number starting with 03";
+    if (!/^03\d{9}$/.test(v)) return "Please enter a valid 11-digit number starting with 03";
+    return "";
+  }
+
+  function validateEmail(value) {
+    const v = String(value ?? "").trim();
+    if (!v) return "Email is required.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return "Please enter a valid email address.";
+    return "";
+  }
+
+  function validatePassword(value) {
+    const v = String(value ?? "");
+    if (!v.trim()) return "Password is required.";
+    if (v.length < 8) return "Password must be at least 8 characters.";
+    return "";
+  }
 
   function passwordStrength(value) {
     const raw = String(value ?? "");
@@ -54,30 +110,51 @@ export default function SignupPage() {
     return { score, label: "Weak", color: "bg-red-500" };
   }
 
-  const canSubmit = useMemo(() => {
-    return (
-      !isBlank(form.fullName) &&
-      !isBlank(form.username) &&
-      !isBlank(form.phone) &&
-      !isBlank(form.email) &&
-      !isBlank(form.password) &&
-      (selectedRole !== "wholesale" || !isBlank(form.businessName))
-    );
-  }, [
-    form.businessName,
-    form.email,
-    form.fullName,
-    form.password,
-    form.phone,
-    form.username,
-    selectedRole,
-  ]);
+  const validation = useMemo(() => {
+    const next = {
+      fullName: validateFullName(form.fullName),
+      username: validateUsername(form.username),
+      phone: validatePhone(form.phone),
+      email: validateEmail(form.email),
+      password: validatePassword(form.password),
+      businessName: selectedRole === "wholesale" ? validateBusinessName(form.businessName) : "",
+    };
+
+    const allValid = Object.values(next).every((msg) => !msg);
+    return { errors: next, allValid };
+  }, [form, selectedRole]);
+
+  const canSubmit = validation.allValid && acceptedTerms && Boolean(selectedRole);
 
   function handleChange(event) {
     const { name, value } = event.target;
-    const nextValue =
-      name === "phone" ? value.replace(/[^\d]/g, "").slice(0, 11) : value;
+    let nextValue = value;
+
+    if (name === "phone") {
+      nextValue = value.replace(/[^\d]/g, "").slice(0, 11);
+    }
+
+    if (name === "fullName" || name === "businessName") {
+      // Only allow letters and spaces while typing.
+      nextValue = value.replace(/[^A-Za-z ]/g, "");
+    }
+
     setForm((current) => ({ ...current, [name]: nextValue }));
+
+    // Real-time field-level validation feedback.
+    setFieldErrors((current) => {
+      const next = { ...current };
+
+      if (name === "fullName") next.fullName = validateFullName(nextValue);
+      if (name === "username") next.username = validateUsername(nextValue);
+      if (name === "phone") next.phone = validatePhone(nextValue);
+      if (name === "email") next.email = validateEmail(nextValue);
+      if (name === "password") next.password = validatePassword(nextValue);
+      if (name === "businessName") next.businessName = validateBusinessName(nextValue);
+
+      return next;
+    });
+
     setErrorMessage("");
   }
 
@@ -89,14 +166,23 @@ export default function SignupPage() {
       return;
     }
 
-    if (!canSubmit) {
-      setErrorMessage("Please complete all fields.");
-      return;
-    }
-
     const cleanedPhone = String(form.phone ?? "").replace(/[^\d]/g, "");
-    if (!/^03\d{9}$/.test(cleanedPhone)) {
-      setErrorMessage("Please enter a valid 11-digit number starting with 03");
+    const submitErrors = {
+      fullName: validateFullName(form.fullName),
+      username: validateUsername(form.username),
+      phone: validatePhone(cleanedPhone),
+      email: validateEmail(form.email),
+      password: validatePassword(form.password),
+      businessName:
+        selectedRole === "wholesale" ? validateBusinessName(form.businessName) : "",
+    };
+
+    setFieldErrors(submitErrors);
+
+    const submitValid = Object.values(submitErrors).every((msg) => !msg);
+
+    if (!submitValid) {
+      setErrorMessage("Please fix the highlighted fields.");
       return;
     }
 
@@ -290,6 +376,9 @@ export default function SignupPage() {
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
                     </div>
+                    {fieldErrors.fullName ? (
+                      <p className="mt-1 text-xs text-red-700">{fieldErrors.fullName}</p>
+                    ) : null}
                   </label>
 
                   <label className="block">
@@ -306,6 +395,9 @@ export default function SignupPage() {
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
                     </div>
+                    {fieldErrors.username ? (
+                      <p className="mt-1 text-xs text-red-700">{fieldErrors.username}</p>
+                    ) : null}
                   </label>
 
                   <label className="block">
@@ -325,6 +417,9 @@ export default function SignupPage() {
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
                     </div>
+                    {fieldErrors.phone ? (
+                      <p className="mt-1 text-xs text-red-700">{fieldErrors.phone}</p>
+                    ) : null}
                   </label>
 
                   {selectedRole === "wholesale" ? (
@@ -342,6 +437,9 @@ export default function SignupPage() {
                           className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                         />
                       </div>
+                      {fieldErrors.businessName ? (
+                        <p className="mt-1 text-xs text-red-700">{fieldErrors.businessName}</p>
+                      ) : null}
                     </label>
                   ) : null}
 
@@ -359,6 +457,9 @@ export default function SignupPage() {
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
                     </div>
+                    {fieldErrors.email ? (
+                      <p className="mt-1 text-xs text-red-700">{fieldErrors.email}</p>
+                    ) : null}
                   </label>
 
                   <label className="block">
@@ -383,6 +484,9 @@ export default function SignupPage() {
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                       </button>
                     </div>
+                    {fieldErrors.password ? (
+                      <p className="mt-1 text-xs text-red-700">{fieldErrors.password}</p>
+                    ) : null}
                   </label>
 
                   {/* Strength meter */}
@@ -428,7 +532,7 @@ export default function SignupPage() {
 
                   <button
                     type="submit"
-                    disabled={!canSubmit || !acceptedTerms || isSubmitting}
+                    disabled={!canSubmit || isSubmitting}
                     className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#800000] to-[#5b0303] text-sm font-bold text-white shadow-lg shadow-[#800000]/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {isSubmitting ? "Creating..." : "Create Account"}
