@@ -67,6 +67,14 @@ export default function LoginPage() {
         return;
       }
 
+      if (selectedRole !== "management") {
+        const cleanedPhone = String(form.identifier ?? "").replace(/[^\d]/g, "");
+        if (!/^\d{11}$/.test(cleanedPhone)) {
+          setErrorMessage("Please enter a valid 11-digit phone number.");
+          return;
+        }
+      }
+
       const session = await login({
         identifier: form.identifier,
         password: selectedRole === "management" ? form.password : "",
@@ -253,12 +261,14 @@ export default function LoginPage() {
                         <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                         <input
                           name="identifier"
-                          type="text"
+                          type={selectedRole === "management" ? "text" : "tel"}
                           value={form.identifier}
                           onChange={handleChange}
                           placeholder={selectedRole === "management" ? "Username" : "Phone Number"}
                           autoComplete="username"
                           inputMode={selectedRole === "management" ? undefined : "tel"}
+                          maxLength={selectedRole === "management" ? undefined : 11}
+                          pattern={selectedRole === "management" ? undefined : "\\d{11}"}
                           className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                         />
                       </div>

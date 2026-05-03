@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import {
   Eye,
   EyeOff,
-  Handshake,
   LockKeyhole,
   Mail,
   Phone,
@@ -21,7 +20,7 @@ function isBlank(value) {
 export default function SignupPage() {
   const router = useRouter();
   const [step, setStep] = useState("select"); // select | form
-  const [selectedRole, setSelectedRole] = useState(null); // wholesale | retail
+  const [selectedRole, setSelectedRole] = useState(null); // retail
   const [form, setForm] = useState({
     fullName: "",
     phone: "",
@@ -78,6 +77,12 @@ export default function SignupPage() {
 
     if (!canSubmit) {
       setErrorMessage("Please complete all fields.");
+      return;
+    }
+
+    const cleanedPhone = String(form.phone ?? "").replace(/[^\d]/g, "");
+    if (!/^\d{11}$/.test(cleanedPhone)) {
+      setErrorMessage("Please enter a valid 11-digit phone number.");
       return;
     }
 
@@ -190,29 +195,6 @@ export default function SignupPage() {
                   <button
                     type="button"
                     onClick={() => {
-                      setSelectedRole("wholesale");
-                      setStep("form");
-                      setErrorMessage("");
-                    }}
-                    className="group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 text-left shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md"
-                  >
-                    <span className="flex items-center gap-3">
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#800000]/10 text-[#800000]">
-                        <Handshake className="h-5 w-5" />
-                      </span>
-                      <span>
-                        <span className="block text-sm font-bold text-[#241816]">Wholesale Partner</span>
-                        <span className="block text-xs text-gray-500">For trusted buyers</span>
-                      </span>
-                    </span>
-                    <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
-                      Continue
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
                       setSelectedRole("retail");
                       setStep("form");
                       setErrorMessage("");
@@ -232,6 +214,13 @@ export default function SignupPage() {
                       Continue
                     </span>
                   </button>
+
+                  <p className="rounded-2xl border border-gray-100 bg-white/70 px-4 py-3 text-xs leading-relaxed text-gray-600">
+                    Want to be a Wholesale Partner?{" "}
+                    <span className="font-semibold text-[#800000]">
+                      Contact Admin after signing up.
+                    </span>
+                  </p>
                 </div>
 
                 <form
@@ -270,6 +259,8 @@ export default function SignupPage() {
                         onChange={handleChange}
                         placeholder="Phone Number"
                         autoComplete="tel"
+                        maxLength={11}
+                        pattern="\\d{11}"
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
                     </div>
