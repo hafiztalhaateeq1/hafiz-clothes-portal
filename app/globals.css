@@ -61,12 +61,13 @@ body {
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(900px 520px at 12% 10%, rgba(128, 0, 0, 0.22), transparent 62%),
-    radial-gradient(760px 520px at 90% 18%, rgba(255, 248, 239, 0.92), transparent 60%),
-    radial-gradient(860px 620px at 58% 88%, rgba(255, 250, 245, 0.92), transparent 62%),
-    radial-gradient(720px 520px at 18% 82%, rgba(128, 0, 0, 0.12), transparent 58%),
-    linear-gradient(180deg, #fbf5ef 0%, #f6eee7 100%);
-  filter: saturate(1.05);
+    radial-gradient(980px 620px at 10% 8%, rgba(128, 0, 0, 0.36), transparent 62%),
+    radial-gradient(920px 640px at 72% 12%, rgba(255, 253, 208, 0.92), transparent 60%),
+    radial-gradient(980px 700px at 56% 92%, rgba(255, 253, 208, 0.86), transparent 62%),
+    radial-gradient(880px 640px at 22% 78%, rgba(128, 0, 0, 0.18), transparent 60%),
+    linear-gradient(180deg, #fff8ee 0%, #fff2e4 100%);
+  filter: blur(48px) saturate(1.2);
+  transform: scale(1.06);
 }
 
 /* Very subtle "sewing pattern" grid/lines */
@@ -75,11 +76,10 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.03;
-  background-image:
-    linear-gradient(to right, rgba(128, 0, 0, 0.55) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(128, 0, 0, 0.55) 1px, transparent 1px);
-  background-size: 46px 46px, 46px 46px;
+  opacity: 0.08;
+  /* Premium dot-grid texture (subtle, but visible). */
+  background-image: radial-gradient(#800000 0.5px, transparent 0.5px);
+  background-size: 30px 30px;
   mix-blend-mode: multiply;
 }
 
@@ -141,11 +141,11 @@ body {
   pointer-events: none;
   user-select: none;
   font-family: var(--font-montserrat), var(--font-geist-sans), sans-serif;
-  font-weight: 700;
+  font-weight: 800;
   font-style: italic;
-  letter-spacing: 0.12em;
-  font-size: 0.9rem;
-  color: rgba(128, 0, 0, 0.04);
+  letter-spacing: 0.08em;
+  font-size: 3rem;
+  color: rgba(128, 0, 0, 0.1);
   text-transform: uppercase;
 }
 
