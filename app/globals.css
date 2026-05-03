@@ -76,7 +76,7 @@ body {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.03;
+  opacity: 0.02;
   background-image:
     linear-gradient(to right, rgba(40, 20, 20, 0.9) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(40, 20, 20, 0.9) 1px, transparent 1px),
@@ -127,17 +127,18 @@ body {
   position: absolute;
   inset: 0;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
+  padding-top: 6vh;
   pointer-events: none;
   font-family: var(--font-montserrat), var(--font-geist-sans), sans-serif;
   font-weight: 800;
   letter-spacing: 0.18em;
   font-size: clamp(7rem, 20vw, 16rem);
   line-height: 1;
-  color: rgba(128, 0, 0, 0.06);
-  transform: translateY(2%) rotate(-8deg);
-  text-shadow: 0 20px 60px rgba(128, 0, 0, 0.06);
+  color: rgba(128, 0, 0, 0.02);
+  transform: translateY(-2%) rotate(-10deg);
+  text-shadow: 0 20px 60px rgba(128, 0, 0, 0.03);
 }
 
 @keyframes mesh-drift {

@@ -103,7 +103,7 @@ export default function SignupPage() {
                 className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_55%),radial-gradient(circle_at_bottom,rgba(128,0,0,0.10),transparent_55%)] blur-2xl"
               />
 
-              <div className="relative mx-auto w-full max-w-md rounded-3xl border border-white/50 bg-white/80 p-6 shadow-[0_30px_70px_rgba(69,9,9,0.18),0_10px_25px_rgba(0,0,0,0.08)] backdrop-blur-md sm:p-8">
+              <div className="relative mx-auto w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_36px_90px_rgba(69,9,9,0.18),0_12px_30px_rgba(0,0,0,0.10)] sm:p-8">
                 <div className="flex items-center gap-3">
                   <Image
                     src="/hch-logo.svg"
