@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { FileDown } from "lucide-react";
+import { FileDown, MapPin, Phone, Trash2 } from "lucide-react";
 import { Pencil } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -870,7 +870,103 @@ export default function CustomersPage() {
           </div>
         </div>
 
-        <div className="customers-table-wrap">
+        <div className="customers-table-wrap md:hidden">
+          <div className="grid gap-2">
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={`customers-mobile-skel-${index}`}
+                  className="rounded-2xl border border-white/20 bg-white/50 p-3 shadow-sm backdrop-blur-md"
+                >
+                  <div className="h-4 w-40 rounded bg-black/5" />
+                  <div className="mt-2 h-3 w-56 rounded bg-black/5" />
+                </div>
+              ))
+            ) : visibleCustomers.length > 0 ? (
+              visibleCustomers.map((customer) => {
+                const balance = toNumber(customer.remainingBalance);
+                const balanceTone =
+                  balance > 0
+                    ? "border-red-200 bg-red-50 text-red-700"
+                    : "border-emerald-200 bg-emerald-50 text-emerald-700";
+
+                const categoryLabel =
+                  customer.categoryBadge?.label ?? customer.trustLevel ?? "-";
+
+                return (
+                  <article
+                    key={customer.id}
+                    className="rounded-2xl border border-white/20 bg-white/50 px-3 py-2.5 shadow-sm backdrop-blur-md"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <Link
+                          href={`/customers/${encodeURIComponent(String(customer.id))}`}
+                          className="block truncate text-[0.95rem] font-extrabold text-[#4b0000]"
+                        >
+                          {customer.name}
+                        </Link>
+                        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-semibold text-[#4b0000]/70">
+                          <span className="inline-flex items-center gap-1">
+                            <Phone size={13} />
+                            <span>{customer.phone}</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1">
+                            <MapPin size={13} />
+                            <span className="truncate">{customer.city}</span>
+                          </span>
+                          <span className="text-[#4b0000]/35">|</span>
+                          <span>{categoryLabel}</span>
+                        </p>
+                      </div>
+                      <span
+                        className={`shrink-0 rounded-xl border px-2 py-1 text-xs font-extrabold ${balanceTone}`}
+                        title="Balance"
+                      >
+                        PKR {formatCurrency(balance)}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 flex items-center gap-2">
+                      <Link
+                        href={`/ledger?client=${encodeURIComponent(customer.name)}`}
+                        className="inline-flex h-9 flex-1 items-center justify-center rounded-xl border border-[#4b0000]/15 bg-white/60 text-xs font-bold text-[#4b0000] shadow-sm backdrop-blur-md"
+                      >
+                        {customerCopy.viewLedgerShort}
+                      </Link>
+                      <button
+                        type="button"
+                        className="inline-flex h-9 w-10 items-center justify-center rounded-xl border border-red-200 bg-red-50 text-red-700 shadow-sm"
+                        onClick={() => openDeleteConfirmation(customer)}
+                        aria-label={`Delete ${customer.name}`}
+                      >
+                        <Trash2 size={15} aria-hidden="true" />
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="customers-empty-state">
+                <div className="customers-empty-state-wrap">
+                  <div className="customers-empty-illustration" aria-hidden="true">
+                    <span />
+                    <span />
+                    <span />
+                  </div>
+                  <strong>{customerCopy.noCustomers}</strong>
+                  <p>
+                    {searchQuery.trim()
+                      ? customerCopy.searchCustomersPlaceholder
+                      : customerCopy.noCustomersCopy}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="customers-table-wrap hidden md:block">
           <table className="customers-table">
             <colgroup>
               <col className="customers-col-name" />
