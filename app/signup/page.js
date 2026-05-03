@@ -232,9 +232,31 @@ export default function SignupPage() {
         business_name: selectedRole === "wholesale" ? form.businessName.trim() : null,
       };
 
-      // Placeholder: wire this up to Supabase Auth / custom signup when ready.
       console.log("Signup payload:", payload);
-      // For now, we just redirect back to login after validation.
+
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: payload.name,
+          username: payload.username,
+          phone: payload.phone,
+          email: payload.email,
+          password: payload.password,
+          user_type: payload.user_type,
+          status: payload.status,
+          business_name: payload.business_name,
+        }),
+      });
+
+      const result = await res.json();
+      console.log("Signup response:", { ok: res.ok, status: res.status, result });
+
+      if (!res.ok) {
+        setErrorMessage(result?.error || "Unable to create account. Please try again.");
+        return;
+      }
+
       router.push("/login");
     } catch (error) {
       setErrorMessage(error?.message || "Unable to create account. Please try again.");

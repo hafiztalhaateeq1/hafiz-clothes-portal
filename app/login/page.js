@@ -75,11 +75,20 @@ export default function LoginPage() {
         }
       }
 
+      console.log("Sign-in request:", {
+        role: selectedRole,
+        identifier: form.identifier,
+        hasPassword: Boolean(form.password),
+        rememberMe,
+      });
+
       const session = await login({
         identifier: form.identifier,
         password: form.password,
         rememberMe,
       });
+
+      console.log("Sign-in session:", session);
 
       router.replace(dashboardPathForRole(session?.role));
     } catch (error) {

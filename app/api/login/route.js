@@ -141,11 +141,11 @@ export async function POST(request) {
     if (storedHash) {
       const sha = crypto.createHash("sha256").update(password, "utf8").digest("hex");
       if (sha !== storedHash) {
-        return NextResponse.json({ error: "Invalid Credentials" }, { status: 401 });
+        return NextResponse.json({ error: "Invalid Password" }, { status: 401 });
       }
     } else if (storedPassword) {
       if (password !== storedPassword) {
-        return NextResponse.json({ error: "Invalid Credentials" }, { status: 401 });
+        return NextResponse.json({ error: "Invalid Password" }, { status: 401 });
       }
     } else {
       return NextResponse.json(

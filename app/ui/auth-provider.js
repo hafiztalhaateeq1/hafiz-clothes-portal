@@ -39,6 +39,13 @@ export function AuthProvider({ children }) {
     const rememberMe = Boolean(credentials?.rememberMe);
     const payload = { ...credentials, rememberMe };
 
+    if (typeof window !== "undefined") {
+      console.log("AuthProvider.login payload:", {
+        ...payload,
+        password: payload.password ? "***" : "",
+      });
+    }
+
     const response = await fetch("/api/login", {
       method: "POST",
       headers: {
@@ -48,6 +55,10 @@ export function AuthProvider({ children }) {
     });
 
     const result = await response.json();
+
+    if (typeof window !== "undefined") {
+      console.log("AuthProvider.login response:", { ok: response.ok, status: response.status, result });
+    }
 
     if (!response.ok) {
       throw new Error(result.error ?? "Unable to sign in.");
