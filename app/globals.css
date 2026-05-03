@@ -138,6 +138,20 @@ body {
   filter: saturate(0.95);
 }
 
+.auth-text-watermark {
+  position: absolute;
+  right: 1.15rem;
+  bottom: 0.95rem;
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--font-montserrat), var(--font-geist-sans), sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  font-size: 1.15rem;
+  color: rgba(128, 0, 0, 0.05);
+  text-transform: uppercase;
+}
+
 @keyframes mesh-drift {
   from {
     transform: translate3d(-1.2%, -1%, 0) scale(1.02);

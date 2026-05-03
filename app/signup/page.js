@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import {
   Eye,
   EyeOff,
+  Handshake,
   LockKeyhole,
   Mail,
   Phone,
@@ -20,12 +21,14 @@ function isBlank(value) {
 export default function SignupPage() {
   const router = useRouter();
   const [step, setStep] = useState("select"); // select | form
-  const [selectedRole, setSelectedRole] = useState(null); // retail
+  const [selectedRole, setSelectedRole] = useState(null); // retail | wholesale
   const [form, setForm] = useState({
     fullName: "",
+    username: "",
     phone: "",
     email: "",
     password: "",
+    businessName: "",
   });
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,15 +57,26 @@ export default function SignupPage() {
   const canSubmit = useMemo(() => {
     return (
       !isBlank(form.fullName) &&
+      !isBlank(form.username) &&
       !isBlank(form.phone) &&
       !isBlank(form.email) &&
-      !isBlank(form.password)
+      !isBlank(form.password) &&
+      (selectedRole !== "wholesale" || !isBlank(form.businessName))
     );
-  }, [form.email, form.fullName, form.password, form.phone]);
+  }, [
+    form.businessName,
+    form.email,
+    form.fullName,
+    form.password,
+    form.phone,
+    form.username,
+    selectedRole,
+  ]);
 
   function handleChange(event) {
     const { name, value } = event.target;
-    const nextValue = name === "phone" ? value.replace(/[^\d]/g, "") : value;
+    const nextValue =
+      name === "phone" ? value.replace(/[^\d]/g, "").slice(0, 11) : value;
     setForm((current) => ({ ...current, [name]: nextValue }));
     setErrorMessage("");
   }
@@ -81,8 +95,8 @@ export default function SignupPage() {
     }
 
     const cleanedPhone = String(form.phone ?? "").replace(/[^\d]/g, "");
-    if (!/^\d{11}$/.test(cleanedPhone)) {
-      setErrorMessage("Please enter a valid 11-digit phone number.");
+    if (!/^03\d{9}$/.test(cleanedPhone)) {
+      setErrorMessage("Please enter a valid 11-digit number starting with 03");
       return;
     }
 
@@ -95,7 +109,19 @@ export default function SignupPage() {
     setErrorMessage("");
 
     try {
+      const payload = {
+        user_type: selectedRole, // retail | wholesale (hidden)
+        status: selectedRole === "wholesale" ? "pending" : "active",
+        name: form.fullName.trim(),
+        username: form.username.trim(),
+        phone: cleanedPhone,
+        email: form.email.trim(),
+        password: form.password,
+        business_name: selectedRole === "wholesale" ? form.businessName.trim() : null,
+      };
+
       // Placeholder: wire this up to Supabase Auth / custom signup when ready.
+      console.log("Signup payload:", payload);
       // For now, we just redirect back to login after validation.
       router.push("/login");
     } catch (error) {
@@ -110,14 +136,9 @@ export default function SignupPage() {
       <div aria-hidden="true" className="auth-blob auth-blob-1" />
       <div aria-hidden="true" className="auth-blob auth-blob-2" />
       <div aria-hidden="true" className="auth-blob auth-blob-3" />
-      <Image
-        aria-hidden="true"
-        src="/hch-logo.svg"
-        alt=""
-        width={76}
-        height={76}
-        className="auth-corner-logo"
-      />
+      <div aria-hidden="true" className="auth-text-watermark">
+        HCH
+      </div>
 
       <div className="relative min-h-screen px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center justify-center">
@@ -215,11 +236,35 @@ export default function SignupPage() {
                     </span>
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRole("wholesale");
+                      setStep("form");
+                      setErrorMessage("");
+                    }}
+                    className="group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 text-left shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#800000]/10 text-[#800000]">
+                        <Handshake className="h-5 w-5" />
+                      </span>
+                      <span>
+                        <span className="block text-sm font-bold text-[#241816]">Wholesale Partner (Apply)</span>
+                        <span className="block text-xs text-gray-500">Pending approval</span>
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
+                      Apply
+                    </span>
+                  </button>
+
                   <p className="rounded-2xl border border-gray-100 bg-white/70 px-4 py-3 text-xs leading-relaxed text-gray-600">
                     Want to be a Wholesale Partner?{" "}
                     <span className="font-semibold text-[#800000]">
-                      Contact Admin after signing up.
-                    </span>
+                      Apply here
+                    </span>{" "}
+                    and you will be approved by Admin later.
                   </p>
                 </div>
 
@@ -248,6 +293,22 @@ export default function SignupPage() {
                   </label>
 
                   <label className="block">
+                    <span className="sr-only">Username</span>
+                    <div className="relative">
+                      <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        name="username"
+                        type="text"
+                        value={form.username}
+                        onChange={handleChange}
+                        placeholder="Username"
+                        autoComplete="username"
+                        className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
+                      />
+                    </div>
+                  </label>
+
+                  <label className="block">
                     <span className="sr-only">Phone Number</span>
                     <div className="relative">
                       <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
@@ -257,14 +318,32 @@ export default function SignupPage() {
                         inputMode="tel"
                         value={form.phone}
                         onChange={handleChange}
-                        placeholder="Phone Number"
+                        placeholder="03XXXXXXXXX"
                         autoComplete="tel"
                         maxLength={11}
-                        pattern="\\d{11}"
+                        pattern="03\\d{9}"
                         className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
                     </div>
                   </label>
+
+                  {selectedRole === "wholesale" ? (
+                    <label className="block">
+                      <span className="sr-only">Shop/Business Name</span>
+                      <div className="relative">
+                        <Store className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                        <input
+                          name="businessName"
+                          type="text"
+                          value={form.businessName}
+                          onChange={handleChange}
+                          placeholder="Shop / Business Name"
+                          autoComplete="organization"
+                          className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
+                        />
+                      </div>
+                    </label>
+                  ) : null}
 
                   <label className="block">
                     <span className="sr-only">Email</span>

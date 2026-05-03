@@ -115,14 +115,9 @@ export default function LoginPage() {
       <div aria-hidden="true" className="auth-blob auth-blob-1" />
       <div aria-hidden="true" className="auth-blob auth-blob-2" />
       <div aria-hidden="true" className="auth-blob auth-blob-3" />
-      <Image
-        aria-hidden="true"
-        src="/hch-logo.svg"
-        alt=""
-        width={76}
-        height={76}
-        className="auth-corner-logo"
-      />
+      <div aria-hidden="true" className="auth-text-watermark">
+        HCH
+      </div>
 
       <div className="relative min-h-screen px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center justify-center">
