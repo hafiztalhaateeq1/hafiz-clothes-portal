@@ -8,6 +8,7 @@ import {
 } from "react";
 
 const STORAGE_KEY = "hafiz-auth-session";
+const SESSION_STORAGE_KEY = "hafiz-auth-session-temporary";
 
 const AuthContext = createContext(null);
 
@@ -17,7 +18,9 @@ export function AuthProvider({ children }) {
       return null;
     }
 
-    const savedSession = window.localStorage.getItem(STORAGE_KEY);
+    const savedSession =
+      window.localStorage.getItem(STORAGE_KEY) ??
+      window.sessionStorage.getItem(SESSION_STORAGE_KEY);
 
     if (!savedSession) {
       return null;
@@ -27,17 +30,22 @@ export function AuthProvider({ children }) {
       return JSON.parse(savedSession);
     } catch {
       window.localStorage.removeItem(STORAGE_KEY);
+      window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
       return null;
     }
   });
 
   async function login(credentials) {
+    const rememberMe = Boolean(credentials?.rememberMe);
+    const payload = { ...credentials };
+    delete payload.rememberMe;
+
     const response = await fetch("/api/login", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(credentials),
+      body: JSON.stringify(payload),
     });
 
     const result = await response.json();
@@ -49,7 +57,19 @@ export function AuthProvider({ children }) {
     setSession(result.session);
 
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(result.session));
+      // Persist session based on user preference:
+      // - Remember Me: survive browser restarts (localStorage)
+      // - Otherwise: survive refreshes but clear on browser close (sessionStorage)
+      if (rememberMe) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(result.session));
+        window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      } else {
+        window.sessionStorage.setItem(
+          SESSION_STORAGE_KEY,
+          JSON.stringify(result.session)
+        );
+        window.localStorage.removeItem(STORAGE_KEY);
+      }
     }
 
     return result.session;
@@ -60,6 +80,7 @@ export function AuthProvider({ children }) {
 
     if (typeof window !== "undefined") {
       window.localStorage.removeItem(STORAGE_KEY);
+      window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
     }
   }
 

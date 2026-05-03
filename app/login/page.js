@@ -2,7 +2,15 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Building2, Handshake, LockKeyhole, Store, UserRound } from "lucide-react";
+import {
+  Building2,
+  Eye,
+  EyeOff,
+  Handshake,
+  LockKeyhole,
+  Store,
+  UserRound,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/ui/auth-provider";
 
@@ -19,6 +27,8 @@ export default function LoginPage() {
   const [step, setStep] = useState("select"); // select | form
   const [selectedRole, setSelectedRole] = useState(null); // management | wholesale | retail
   const [form, setForm] = useState({ identifier: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -60,6 +70,7 @@ export default function LoginPage() {
       const session = await login({
         identifier: form.identifier,
         password: selectedRole === "management" ? form.password : "",
+        rememberMe,
       });
 
       router.replace(dashboardPathForRole(session?.role));
@@ -75,6 +86,7 @@ export default function LoginPage() {
     setStep("form");
     setErrorMessage("");
     setForm({ identifier: "", password: "" });
+    setShowPassword(false);
   }
 
   const roleCopy =
@@ -259,16 +271,36 @@ export default function LoginPage() {
                           <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                           <input
                             name="password"
-                            type="password"
+                            type={showPassword ? "text" : "password"}
                             value={form.password}
                             onChange={handleChange}
                             placeholder="Password"
                             autoComplete="current-password"
-                            className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
+                            className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-12 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                           />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((value) => !value)}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-400 transition hover:text-[#800000] focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
+                            aria-label={showPassword ? "Hide password" : "Show password"}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
                         </div>
                       </label>
                     ) : null}
+
+                    <label className="flex items-center justify-between gap-3 pt-1 text-sm text-gray-600">
+                      <span className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={rememberMe}
+                          onChange={(e) => setRememberMe(e.target.checked)}
+                          className="h-4 w-4 rounded border-gray-300 text-[#800000] focus:ring-2 focus:ring-[#800000]/25"
+                        />
+                        Remember Me
+                      </span>
+                    </label>
 
                     {errorMessage ? (
                       <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">

@@ -2,7 +2,16 @@
 
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { Handshake, LockKeyhole, Mail, Phone, Store, UserRound } from "lucide-react";
+import {
+  Eye,
+  EyeOff,
+  Handshake,
+  LockKeyhole,
+  Mail,
+  Phone,
+  Store,
+  UserRound,
+} from "lucide-react";
 import { useRouter } from "next/navigation";
 
 function isBlank(value) {
@@ -21,6 +30,27 @@ export default function SignupPage() {
   });
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  function passwordStrength(value) {
+    const raw = String(value ?? "");
+    if (!raw) return { score: 0, label: "Weak", color: "bg-red-500" };
+
+    const lengthScore = raw.length >= 12 ? 2 : raw.length >= 8 ? 1 : 0;
+    const variety =
+      (/[a-z]/.test(raw) ? 1 : 0) +
+      (/[A-Z]/.test(raw) ? 1 : 0) +
+      (/\d/.test(raw) ? 1 : 0) +
+      (/[^a-zA-Z0-9]/.test(raw) ? 1 : 0);
+
+    const varietyScore = variety >= 3 ? 2 : variety === 2 ? 1 : 0;
+    const score = Math.min(3, lengthScore + varietyScore);
+
+    if (score >= 3) return { score, label: "Strong", color: "bg-emerald-500" };
+    if (score === 2) return { score, label: "Medium", color: "bg-amber-400" };
+    return { score, label: "Weak", color: "bg-red-500" };
+  }
 
   const canSubmit = useMemo(() => {
     return (
@@ -48,6 +78,11 @@ export default function SignupPage() {
 
     if (!canSubmit) {
       setErrorMessage("Please complete all fields.");
+      return;
+    }
+
+    if (!acceptedTerms) {
+      setErrorMessage("Please accept the Terms and Conditions to continue.");
       return;
     }
 
@@ -262,14 +297,57 @@ export default function SignupPage() {
                       <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
                       <input
                         name="password"
-                        type="password"
+                        type={showPassword ? "text" : "password"}
                         value={form.password}
                         onChange={handleChange}
                         placeholder="Password"
                         autoComplete="new-password"
-                        className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
+                        className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-12 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
                       />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((value) => !value)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-400 transition hover:text-[#800000] focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </button>
                     </div>
+                  </label>
+
+                  {/* Strength meter */}
+                  <div className="-mt-2">
+                    {(() => {
+                      const strength = passwordStrength(form.password);
+                      const width = strength.score === 0 ? "w-1/6" : strength.score === 1 ? "w-2/6" : strength.score === 2 ? "w-4/6" : "w-full";
+                      return (
+                        <div className="rounded-2xl border border-gray-100 bg-white/70 px-3 py-2">
+                          <div className="flex items-center justify-between text-[11px] font-semibold text-gray-500">
+                            <span>Password strength</span>
+                            <span className={strength.score >= 3 ? "text-emerald-700" : strength.score === 2 ? "text-amber-700" : "text-red-700"}>
+                              {strength.label}
+                            </span>
+                          </div>
+                          <div className="mt-2 h-1.5 w-full rounded-full bg-gray-100">
+                            <div className={`h-1.5 rounded-full ${strength.color} ${width}`} />
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Terms */}
+                  <label className="flex items-start gap-2 rounded-2xl border border-gray-100 bg-white/70 px-3 py-3 text-sm text-gray-600">
+                    <input
+                      type="checkbox"
+                      checked={acceptedTerms}
+                      onChange={(e) => setAcceptedTerms(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-gray-300 text-[#800000] focus:ring-2 focus:ring-[#800000]/25"
+                    />
+                    <span>
+                      I agree to the{" "}
+                      <span className="font-semibold text-[#800000]">Terms and Conditions</span>
+                    </span>
                   </label>
 
                   {errorMessage ? (
@@ -280,7 +358,7 @@ export default function SignupPage() {
 
                   <button
                     type="submit"
-                    disabled={!canSubmit || isSubmitting}
+                    disabled={!canSubmit || !acceptedTerms || isSubmitting}
                     className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#800000] to-[#5b0303] text-sm font-bold text-white shadow-lg shadow-[#800000]/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
                   >
                     {isSubmitting ? "Creating..." : "Create Account"}
