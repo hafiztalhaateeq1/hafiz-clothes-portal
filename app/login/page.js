@@ -282,6 +282,16 @@ export default function LoginPage() {
                   >
                     {isSubmitting ? "Signing in..." : "Sign In"}
                   </button>
+
+                  <p className="pt-2 text-center text-sm text-gray-600">
+                    Don&apos;t have an account?{" "}
+                    <a
+                      href="/signup"
+                      className="font-bold text-[#800000] hover:underline"
+                    >
+                      Sign Up
+                    </a>
+                  </p>
                 </form>
               </div>
             </div>
