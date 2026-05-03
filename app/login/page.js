@@ -287,7 +287,7 @@ export default function LoginPage() {
                     Don&apos;t have an account?{" "}
                     <a
                       href="/signup"
-                      className="font-bold text-[#800000] hover:underline"
+                      className="inline-flex items-center rounded-lg px-2 py-1 font-bold text-[#800000] transition hover:text-[#6f0000] hover:underline focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
                     >
                       Sign Up
                     </a>
