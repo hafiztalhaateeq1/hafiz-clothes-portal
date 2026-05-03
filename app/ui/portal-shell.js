@@ -56,9 +56,15 @@ export function PortalShell({ children }) {
     }
 
     if (isAuthenticated && publicRoutes.has(pathname)) {
-      router.replace("/");
+      const nextPath =
+        session?.role === "admin"
+          ? "/dashboard/admin"
+          : session?.role === "wholesale"
+            ? "/dashboard/wholesale"
+            : "/dashboard/retail";
+      router.replace(nextPath);
     }
-  }, [isAuthenticated, mounted, pathname, router]);
+  }, [isAuthenticated, mounted, pathname, router, session?.role]);
 
   const languageClass = mounted ? `language-${language}` : "language-en";
   const roleLabel =

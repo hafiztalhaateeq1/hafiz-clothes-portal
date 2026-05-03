@@ -6,36 +6,37 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-function inferCustomerRole(client, selectedRole) {
+function inferCustomerRole(client) {
   const rawType = String(
-    client?.customer_type ?? client?.account_type ?? client?.role ?? selectedRole ?? ""
-  ).toLowerCase();
+    client?.trust_level ?? client?.customer_type ?? client?.account_type ?? client?.role ?? ""
+  )
+    .toLowerCase()
+    .trim();
 
-  if (rawType.includes("whole")) {
+  // Your DB uses "Regular" for wholesale/trusted accounts in several places.
+  if (rawType.includes("whole") || rawType.includes("regular")) {
     return "wholesale";
   }
 
-  return selectedRole === "wholesale" ? "wholesale" : "retail";
+  return "retail";
 }
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const role = String(body.role ?? "").toLowerCase();
 
-    if (role === "admin") {
-      const username = String(body.username ?? "").trim().toLowerCase();
-      const password = String(body.password ?? "");
-      const expectedUsername = String(
-        process.env.ADMIN_USERNAME ?? "Hafiz Talha"
-      ).trim().toLowerCase();
-      const expectedPassword = String(process.env.ADMIN_PASSWORD ?? "hafiz123");
+    const identifierRaw = String(body.identifier ?? body.email ?? body.phone ?? "").trim();
+    const password = String(body.password ?? "");
 
-      if (username !== expectedUsername || password !== expectedPassword) {
-        return NextResponse.json(
-          { error: "Invalid admin credentials." },
-          { status: 401 }
-        );
+    const expectedUsername = String(process.env.ADMIN_USERNAME ?? "Hafiz Talha")
+      .trim()
+      .toLowerCase();
+    const expectedPassword = String(process.env.ADMIN_PASSWORD ?? "hafiz123");
+
+    // Admin: username/email-style identifier + password.
+    if (identifierRaw.toLowerCase() === expectedUsername) {
+      if (password !== expectedPassword) {
+        return NextResponse.json({ error: "Invalid admin credentials." }, { status: 401 });
       }
 
       return NextResponse.json({
@@ -47,64 +48,47 @@ export async function POST(request) {
       });
     }
 
-    const phone = String(body.phone ?? "").replace(/[^\d]/g, "");
-    const providedName = String(body.name ?? "").trim();
+    // Customers: phone-based lookup. (Password is optional for now.)
+    const phone = identifierRaw.replace(/[^\d]/g, "");
 
-    if (!phone && role !== "retail") {
+    if (!phone) {
       return NextResponse.json(
-        { error: "Please enter the registered phone number." },
+        { error: "Please enter your phone number or admin username." },
         { status: 400 }
       );
     }
 
-    let client = null;
+    const { data: client, error } = await supabase
+      .from("clients")
+      .select("id, name, phone, trust_level")
+      .eq("phone", phone)
+      .limit(1)
+      .maybeSingle();
 
-    if (phone) {
-      const { data, error } = await supabase
-        .from("clients")
-        .select("*")
-        .eq("phone", phone)
-        .limit(1)
-        .maybeSingle();
-
-      if (error) {
-        return NextResponse.json(
-          { error: "Unable to verify this customer account right now." },
-          { status: 500 }
-        );
-      }
-
-      client = data;
+    if (error) {
+      return NextResponse.json(
+        { error: "Unable to verify this account right now." },
+        { status: 500 }
+      );
     }
 
-    if (client) {
-      const effectiveRole = inferCustomerRole(client, role);
-
-      return NextResponse.json({
-        session: {
-          role: effectiveRole,
-          customerId: String(client.id ?? ""),
-          displayName: client.name ?? providedName ?? "Customer",
-          phone: client.phone ?? phone,
-        },
-      });
+    if (!client) {
+      return NextResponse.json(
+        { error: "Account not found. Please Sign Up first." },
+        { status: 404 }
+      );
     }
 
-    if (role === "retail") {
-      return NextResponse.json({
-        session: {
-          role: "retail",
-          customerId: null,
-          displayName: providedName || "Guest Customer",
-          phone,
-        },
-      });
-    }
+    const effectiveRole = inferCustomerRole(client);
 
-    return NextResponse.json(
-      { error: "No wholesale customer account was found with that phone number." },
-      { status: 404 }
-    );
+    return NextResponse.json({
+      session: {
+        role: effectiveRole,
+        customerId: String(client.id ?? ""),
+        displayName: client.name ?? "Customer",
+        phone: client.phone ?? phone,
+      },
+    });
   } catch {
     return NextResponse.json(
       { error: "Unable to complete sign in right now." },

@@ -42,7 +42,10 @@ export function PortalNavigation({ collapsed = false }) {
           return item.key !== "customers" && item.key !== "expenses" && item.key !== "reports";
         })
         .map((item) => {
-        const isActive = pathname === item.href;
+        const isActive =
+          item.href === "/"
+            ? pathname === "/" || pathname.startsWith("/dashboard")
+            : pathname === item.href;
         const Icon = item.icon;
 
         return (

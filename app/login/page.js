@@ -2,68 +2,33 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { LockKeyhole, Phone, ShieldCheck, UserRound } from "lucide-react";
+import { LockKeyhole, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/ui/auth-provider";
 
-const initialForms = {
-  admin: {
-    username: "",
-    password: "",
-  },
-  wholesale: {
-    phone: "",
-    name: "",
-  },
-  retail: {
-    phone: "",
-    name: "",
-  },
-};
-
-const loginModes = [
-  {
-    key: "admin",
-    title: "Admin",
-    kicker: "Full access for admins.",
-  },
-  {
-    key: "wholesale",
-    title: "Wholesale",
-    kicker: "Wholesale rates + personal khata.",
-  },
-  {
-    key: "retail",
-    title: "Retail",
-    kicker: "Retail access for customers.",
-  },
-];
+function dashboardPathForRole(role) {
+  const normalized = String(role ?? "").toLowerCase();
+  if (normalized === "admin") return "/dashboard/admin";
+  if (normalized === "wholesale") return "/dashboard/wholesale";
+  return "/dashboard/retail";
+}
 
 export default function LoginPage() {
   const router = useRouter();
-  const { hasMounted, isAuthenticated, login } = useAuth();
-  const [activeMode, setActiveMode] = useState("admin");
-  const [forms, setForms] = useState(initialForms);
+  const { hasMounted, isAuthenticated, login, session } = useAuth();
+  const [form, setForm] = useState({ identifier: "", password: "" });
   const [errorMessage, setErrorMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (hasMounted && isAuthenticated) {
-      router.replace("/");
+      router.replace(dashboardPathForRole(session?.role));
     }
-  }, [hasMounted, isAuthenticated, router]);
+  }, [hasMounted, isAuthenticated, router, session?.role]);
 
   function handleChange(event) {
     const { name, value } = event.target;
-    const nextValue = name === "phone" ? value.replace(/[^\d]/g, "") : value;
-
-    setForms((currentForms) => ({
-      ...currentForms,
-      [activeMode]: {
-        ...currentForms[activeMode],
-        [name]: nextValue,
-      },
-    }));
+    setForm((current) => ({ ...current, [name]: value }));
     setErrorMessage("");
   }
 
@@ -73,21 +38,12 @@ export default function LoginPage() {
     setErrorMessage("");
 
     try {
-      if (activeMode === "admin") {
-        await login({
-          role: "admin",
-          username: forms.admin.username,
-          password: forms.admin.password,
-        });
-      } else {
-        await login({
-          role: activeMode,
-          phone: forms[activeMode].phone,
-          name: forms[activeMode].name,
-        });
-      }
+      const session = await login({
+        identifier: form.identifier,
+        password: form.password,
+      });
 
-      router.replace("/");
+      router.replace(dashboardPathForRole(session?.role));
     } catch (error) {
       setErrorMessage(error.message);
     } finally {
@@ -98,12 +54,6 @@ export default function LoginPage() {
   if (!hasMounted) {
     return <section className="min-h-screen bg-[#FDF8F3]" />;
   }
-
-  const activeIndex = Math.max(
-    0,
-    loginModes.findIndex((mode) => mode.key === activeMode)
-  );
-  const activeKicker = loginModes.find((mode) => mode.key === activeMode)?.kicker ?? "";
 
   return (
     <section className="auth-surface">
@@ -170,111 +120,38 @@ export default function LoginPage() {
                   </div>
                 </div>
 
-                <div className="mt-6" role="tablist" aria-label="Login modes">
-                  <div className="relative flex rounded-2xl bg-gray-100 p-1">
-                    <div
-                      aria-hidden="true"
-                      className="absolute inset-y-1 left-1 w-[calc((100%-0.5rem)/3)] rounded-xl bg-white shadow-sm transition-transform duration-200"
-                      style={{ transform: `translateX(${activeIndex * 100}%)` }}
-                    />
-                    {loginModes.map((mode) => (
-                      <button
-                        key={mode.key}
-                        type="button"
-                        className={`relative z-10 flex-1 rounded-xl px-3 py-2 text-sm font-semibold transition-colors ${
-                          activeMode === mode.key
-                            ? "text-[#800000]"
-                            : "text-gray-600 hover:text-gray-800"
-                        }`}
-                        onClick={() => {
-                          setActiveMode(mode.key);
-                          setErrorMessage("");
-                        }}
-                      >
-                        {mode.title}
-                      </button>
-                    ))}
-                  </div>
-
-                  {activeKicker ? (
-                    <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
-                      <ShieldCheck className="h-4 w-4 text-[#800000]" aria-hidden="true" />
-                      <p className="m-0">{activeKicker}</p>
-                    </div>
-                  ) : null}
-                </div>
-
                 <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-                  {activeMode === "admin" ? (
-                    <>
-                      <label className="block">
-                        <span className="sr-only">Username</span>
-                        <div className="relative">
-                          <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                          <input
-                            name="username"
-                            type="text"
-                            value={forms.admin.username}
-                            onChange={handleChange}
-                            placeholder="Admin username"
-                            autoComplete="username"
-                            className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
-                          />
-                        </div>
-                      </label>
+                  <label className="block">
+                    <span className="sr-only">Phone Number or Admin Username</span>
+                    <div className="relative">
+                      <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        name="identifier"
+                        type="text"
+                        value={form.identifier}
+                        onChange={handleChange}
+                        placeholder="Phone number or admin username"
+                        autoComplete="username"
+                        className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
+                      />
+                    </div>
+                  </label>
 
-                      <label className="block">
-                        <span className="sr-only">Password</span>
-                        <div className="relative">
-                          <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                          <input
-                            name="password"
-                            type="password"
-                            value={forms.admin.password}
-                            onChange={handleChange}
-                            placeholder="Password"
-                            autoComplete="current-password"
-                            className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
-                          />
-                        </div>
-                      </label>
-                    </>
-                  ) : (
-                    <>
-                      <label className="block">
-                        <span className="sr-only">Phone Number</span>
-                        <div className="relative">
-                          <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                          <input
-                            name="phone"
-                            type="tel"
-                            inputMode="tel"
-                            value={forms[activeMode].phone}
-                            onChange={handleChange}
-                            placeholder="Phone number"
-                            autoComplete="tel"
-                            className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
-                          />
-                        </div>
-                      </label>
-
-                      <label className="block">
-                        <span className="sr-only">Name</span>
-                        <div className="relative">
-                          <UserRound className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-                          <input
-                            name="name"
-                            type="text"
-                            value={forms[activeMode].name}
-                            onChange={handleChange}
-                            placeholder="Your name"
-                            autoComplete="name"
-                            className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
-                          />
-                        </div>
-                      </label>
-                    </>
-                  )}
+                  <label className="block">
+                    <span className="sr-only">Password</span>
+                    <div className="relative">
+                      <LockKeyhole className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                      <input
+                        name="password"
+                        type="password"
+                        value={form.password}
+                        onChange={handleChange}
+                        placeholder="Password (admin only)"
+                        autoComplete="current-password"
+                        className="h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 pl-10 pr-4 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25"
+                      />
+                    </div>
+                  </label>
 
                   {errorMessage ? (
                     <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
