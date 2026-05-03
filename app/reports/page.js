@@ -541,12 +541,13 @@ export default function ReportsPage() {
             </div>
             <button
               type="button"
-              className="reports-download"
+              className="reports-download w-full justify-center md:w-auto"
               onClick={() => downloadReport("daily")}
               disabled={downloading === "daily"}
             >
-              <FileDown size={16} />
-              <span>{downloading === "daily" ? "..." : ui.download}</span>
+              <FileDown size={24} />
+              <span className="sm:hidden">{downloading === "daily" ? "..." : language === "ur" ? ui.download : "Download PDF"}</span>
+              <span className="hidden sm:inline">{downloading === "daily" ? "..." : ui.download}</span>
             </button>
           </div>
 
@@ -581,12 +582,13 @@ export default function ReportsPage() {
             </div>
             <button
               type="button"
-              className="reports-download"
+              className="reports-download w-full justify-center md:w-auto"
               onClick={() => downloadReport("monthly")}
               disabled={downloading === "monthly"}
             >
-              <FileDown size={16} />
-              <span>{downloading === "monthly" ? "..." : ui.download}</span>
+              <FileDown size={24} />
+              <span className="sm:hidden">{downloading === "monthly" ? "..." : language === "ur" ? ui.download : "Download PDF"}</span>
+              <span className="hidden sm:inline">{downloading === "monthly" ? "..." : ui.download}</span>
             </button>
           </div>
 
@@ -594,19 +596,26 @@ export default function ReportsPage() {
             <div className="reports-loading-row" />
           ) : (
             <div className="reports-card-body">
-              <div className="reports-metrics">
-                <div>
-                  <span>{ui.totalSale}</span>
-                  <strong>PKR {formatCurrency(monthly.totalSale)}</strong>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-gray-500">{ui.totalSale}</span>
+                  <strong className="text-base font-bold text-[#3b1d1d]">
+                    PKR {formatCurrency(monthly.totalSale)}
+                  </strong>
                 </div>
-                <div>
-                  <span>{ui.totalExpenses}</span>
-                  <strong>PKR {formatCurrency(monthly.totalExpenses)}</strong>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-gray-500">{ui.totalExpenses}</span>
+                  <strong className="text-base font-bold text-[#3b1d1d]">
+                    PKR {formatCurrency(monthly.totalExpenses)}
+                  </strong>
                 </div>
-                <div>
-                  <span>{ui.netProfit}</span>
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-gray-500">{ui.netProfit}</span>
                   <strong
-                    className={monthly.netProfit >= 0 ? "reports-profit-positive" : "reports-profit-negative"}
+                    className={[
+                      "text-base font-bold",
+                      monthly.netProfit >= 0 ? "text-emerald-700" : "text-[#800000]",
+                    ].join(" ")}
                   >
                     PKR {formatCurrency(monthly.netProfit)}
                   </strong>
@@ -629,12 +638,13 @@ export default function ReportsPage() {
             </div>
             <button
               type="button"
-              className="reports-download"
+              className="reports-download w-full justify-center md:w-auto"
               onClick={() => downloadReport("inventory")}
               disabled={downloading === "inventory"}
             >
-              <FileDown size={16} />
-              <span>{downloading === "inventory" ? "..." : ui.download}</span>
+              <FileDown size={24} />
+              <span className="sm:hidden">{downloading === "inventory" ? "..." : language === "ur" ? ui.download : "Download PDF"}</span>
+              <span className="hidden sm:inline">{downloading === "inventory" ? "..." : ui.download}</span>
             </button>
           </div>
 

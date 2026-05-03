@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Coffee, Home, Layers, Trash2, Users, Zap } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/ui/auth-provider";
 import { useLanguage } from "@/app/ui/language-provider";
@@ -48,6 +48,21 @@ function normalizeExpenseRow(row, index = 0) {
     description: row.description ?? "",
     amount: toNumber(row.amount),
   };
+}
+
+function getCategoryIcon(category) {
+  switch (category) {
+    case "rent":
+      return Home;
+    case "electricity":
+      return Zap;
+    case "salary":
+      return Users;
+    case "tea":
+      return Coffee;
+    default:
+      return Layers;
+  }
 }
 
 async function fetchExpensesSafe() {
@@ -111,6 +126,7 @@ export default function ExpensesPage() {
       monthlyTotal: "Total Monthly Expenses",
       monthlyNote: "Auto-summed from entries recorded this month.",
       formTitle: "Add New Expense",
+      tableTitle: "Expense History",
       date: "Date",
       category: "Category",
       description: "Description",
@@ -411,7 +427,9 @@ export default function ExpensesPage() {
         </div>
 
         <div className="expenses-table-wrap">
-          <table className="expenses-table">
+          {/* Desktop table */}
+          <div className="hidden md:block">
+            <table className="expenses-table">
             <colgroup>
               <col className="expenses-col-date" />
               <col className="expenses-col-category" />
@@ -468,7 +486,66 @@ export default function ExpensesPage() {
                 </tr>
               )}
             </tbody>
-          </table>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="md:hidden space-y-3">
+            {isLoading ? (
+              Array.from({ length: 6 }).map((_, index) => (
+                <div
+                  key={`expense-mobile-loading-${index}`}
+                  className="rounded-2xl border border-white/30 bg-white/50 backdrop-blur-md p-4 shadow-[0_10px_28px_rgba(69,9,9,0.06)]"
+                >
+                  <div className="h-4 w-40 rounded bg-black/10" />
+                  <div className="mt-3 h-3 w-56 rounded bg-black/10" />
+                </div>
+              ))
+            ) : expenses.length ? (
+              expenses.map((row) => {
+                const Icon = getCategoryIcon(row.category);
+                return (
+                  <div
+                    key={row.id}
+                    className="rounded-2xl border border-white/30 bg-white/60 backdrop-blur-xl p-4 shadow-[0_10px_28px_rgba(69,9,9,0.06)]"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 text-sm font-semibold text-[#3b1d1d]">
+                          <Icon className="h-4 w-4 text-[#800000]" aria-hidden="true" />
+                          <span className="truncate">{ui.categories?.[row.category] ?? row.category}</span>
+                        </div>
+                        <div className="mt-1 text-xs text-[#6b4a4a]">{row.dateLabel}</div>
+                      </div>
+
+                      <div className="shrink-0 text-right">
+                        <div className="text-base font-bold text-[#800000]">
+                          PKR {formatCurrency(row.amount)}
+                        </div>
+                        <button
+                          type="button"
+                          className="mt-2 inline-flex items-center justify-center rounded-xl border border-[#800000]/15 bg-white/40 p-2 text-[#800000] shadow-sm transition hover:bg-white/70 disabled:opacity-50"
+                          onClick={() => handleDelete(row.id)}
+                          disabled={!canEdit || deleteId === String(row.id)}
+                          aria-label={ui.delete}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {row.description ? (
+                      <div className="mt-3 text-sm text-[#3b1d1d]/80">{row.description}</div>
+                    ) : null}
+                  </div>
+                );
+              })
+            ) : (
+              <div className="rounded-2xl border border-white/30 bg-white/60 backdrop-blur-xl p-4 text-sm text-[#6b4a4a] shadow-[0_10px_28px_rgba(69,9,9,0.06)]">
+                {errorMessage || ui.empty}
+              </div>
+            )}
+          </div>
         </div>
       </section>
     </section>
