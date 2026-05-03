@@ -208,6 +208,26 @@ export function PortalShell({ children }) {
 
           <div className={`portal-sidebar-bottom ${isCollapsed ? "is-collapsed" : ""}`}>
             <div className="portal-sidebar-divider" aria-hidden="true" />
+
+            {!isCollapsed ? (
+              <div className="md:hidden px-2 pb-2">
+                <label className="block text-[0.68rem] font-semibold uppercase tracking-widest text-white/70">
+                  {t.common.language ?? "Language"}
+                </label>
+                <select
+                  value={mounted ? language : "en"}
+                  onChange={(event) => setLanguage(event.target.value)}
+                  className="mt-2 w-full rounded-xl border border-white/15 bg-white/10 px-3 py-2 text-sm font-semibold text-[#fff8ef] shadow-sm backdrop-blur-md focus:outline-none focus:ring-2 focus:ring-white/20"
+                >
+                  {languages.map((option) => (
+                    <option key={option.value} value={option.value} className="text-[#241816]">
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
+
             <button
               type="button"
               className={`portal-nav-link portal-sidebar-utility ${
@@ -275,7 +295,7 @@ export function PortalShell({ children }) {
 
               <button
                 type="button"
-                className="portal-sidebar-toggle"
+                className="portal-sidebar-toggle hidden md:inline-flex"
                 onClick={() => setIsCollapsed((currentState) => !currentState)}
                 aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
@@ -292,20 +312,26 @@ export function PortalShell({ children }) {
                     className="portal-logo-mark"
                     priority
                   />
-                  <div className="portal-logo-copy min-w-0">
+                  <div className="portal-logo-copy min-w-0 hidden sm:block">
                     <p className="portal-topbar-kicker">Hafiz Clothes House</p>
-                    <h1 className="truncate">Hafiz Clothes House</h1>
+                    <h1 className="truncate">
+                      <span className="inline sm:hidden">Hafiz</span>
+                      <span className="hidden sm:inline md:hidden">Hafiz Clothes</span>
+                      <span className="hidden md:inline">Hafiz Clothes House</span>
+                    </h1>
                   </div>
                 </div>
               </div>
             </div>
 
             <div className="portal-topbar-actions shrink-0">
-              <div className="portal-session-badge">
+              <div className="portal-session-badge hidden md:flex">
                 <strong>{session?.displayName ?? "User"}</strong>
                 <span>{roleLabel}</span>
               </div>
-              <LanguageSwitcher />
+              <div className="hidden md:block">
+                <LanguageSwitcher />
+              </div>
               <button
                 type="button"
                 className="portal-logout-button"
