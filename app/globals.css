@@ -5198,6 +5198,67 @@ h6,
   }
 }
 
+/* Mobile-only overlay polish (<768px): bottom-sheet settings + compact profile menu. */
+@media (max-width: 767px) {
+  .portal-topbar-kicker {
+    font-size: 0.6rem;
+  }
+
+  .portal-topbar-copy h1 {
+    font-size: 0.95rem;
+    line-height: 1.15;
+  }
+
+  .portal-overlay {
+    align-items: flex-end;
+    padding: 0.85rem;
+  }
+
+  .portal-settings-modal {
+    height: auto;
+    max-height: 85vh;
+    width: 100%;
+    border-radius: 1.6rem 1.6rem 0 0;
+    padding: 1rem 1rem 1.1rem;
+  }
+
+  /* Keep the bottom sheet feeling intentional and not "empty". */
+  .portal-settings-section {
+    padding-block: 0.75rem;
+  }
+
+  .portal-settings-language {
+    gap: 0.5rem;
+  }
+
+  .portal-settings-chip {
+    min-height: 2.3rem;
+    padding: 0.45rem 0.85rem;
+  }
+
+  .portal-profile-popover {
+    left: auto;
+    right: 0;
+    width: 12.25rem;
+    min-width: 0;
+    padding: 0.7rem;
+    gap: 0.55rem;
+    border-radius: 1.1rem;
+  }
+
+  .portal-role-badge {
+    min-height: 1.75rem;
+    font-size: 0.68rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  .portal-popover-action {
+    min-height: 2.35rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.95rem;
+  }
+}
+
 @media (min-width: 1024px) {
   .portal-sidebar {
     position: fixed;
