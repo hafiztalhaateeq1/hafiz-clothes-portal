@@ -11,6 +11,24 @@ function sha256Hex(value) {
   return crypto.createHash("sha256").update(String(value ?? ""), "utf8").digest("hex");
 }
 
+async function signUpAuthAccount({ fullName, phoneNumber, password, role }) {
+  const phoneAsEmail = `${phoneNumber}@hch.com`;
+
+  const { data, error } = await supabase.auth.signUp({
+    email: phoneAsEmail,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+        phone: phoneNumber,
+        role,
+      },
+    },
+  });
+
+  return { data, error, phoneAsEmail };
+}
+
 async function insertClientWithFallback(clientPayload) {
   // Try richer payload first; if schema doesn't have a column, retry without it.
   const attempts = [
@@ -106,6 +124,29 @@ export async function POST(request) {
       );
     }
 
+    // Create Supabase Auth account using phone-as-email.
+    const authSignup = await signUpAuthAccount({
+      fullName: name,
+      phoneNumber: phone,
+      password,
+      role: userType,
+    });
+
+    console.log("API SIGNUP auth:", {
+      phoneAsEmail: authSignup.phoneAsEmail,
+      hasUser: Boolean(authSignup.data?.user),
+      hasSession: Boolean(authSignup.data?.session),
+      error: authSignup.error?.message ?? null,
+    });
+
+    if (authSignup.error) {
+      // Most common: user already exists in Auth for that email.
+      return NextResponse.json(
+        { error: authSignup.error.message ?? "Unable to create account right now." },
+        { status: 400 }
+      );
+    }
+
     const clientPayload = {
       name,
       phone,
@@ -132,10 +173,16 @@ export async function POST(request) {
       );
     }
 
-    return NextResponse.json({ ok: true, client: data });
+    return NextResponse.json({
+      ok: true,
+      client: data,
+      auth: {
+        email: authSignup.phoneAsEmail,
+        userId: authSignup.data?.user?.id ?? null,
+      },
+    });
   } catch (error) {
     console.error("API SIGNUP exception:", error);
     return NextResponse.json({ error: "Unable to create account right now." }, { status: 500 });
   }
 }
-
