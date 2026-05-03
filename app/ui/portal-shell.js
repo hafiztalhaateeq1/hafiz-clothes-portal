@@ -263,7 +263,7 @@ export function PortalShell({ children }) {
           }`}
         >
           <header className="portal-topbar">
-            <div className="portal-topbar-brand">
+            <div className="portal-topbar-brand min-w-0 flex-1">
               <button
                 type="button"
                 className="portal-menu-button"
@@ -283,7 +283,7 @@ export function PortalShell({ children }) {
               </button>
 
               <div className="portal-topbar-copy">
-                <div className="portal-logo-lockup">
+                <div className="portal-logo-lockup min-w-0">
                   <Image
                     src="/hch-logo.svg"
                     alt="HCH logo"
@@ -292,15 +292,15 @@ export function PortalShell({ children }) {
                     className="portal-logo-mark"
                     priority
                   />
-                  <div className="portal-logo-copy">
+                  <div className="portal-logo-copy min-w-0">
                     <p className="portal-topbar-kicker">Hafiz Clothes House</p>
-                    <h1>Hafiz Clothes House</h1>
+                    <h1 className="truncate">Hafiz Clothes House</h1>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="portal-topbar-actions">
+            <div className="portal-topbar-actions shrink-0">
               <div className="portal-session-badge">
                 <strong>{session?.displayName ?? "User"}</strong>
                 <span>{roleLabel}</span>

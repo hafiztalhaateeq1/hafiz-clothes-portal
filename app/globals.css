@@ -4112,6 +4112,36 @@ a {
     align-items: center;
   }
 
+  /* Mobile header polish: prevent overlap by allowing truncation + hiding secondary info. */
+  .portal-topbar-copy {
+    min-width: 0;
+  }
+
+  .portal-topbar-kicker {
+    display: none;
+  }
+
+  .portal-topbar-copy h1 {
+    max-width: 11rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.92rem;
+    line-height: 1.15;
+  }
+
+  .portal-session-badge {
+    display: none;
+  }
+
+  .language-switcher-links {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    white-space: normal;
+  }
+
   .portal-mobile-header {
     padding-top: 0.8rem;
   }
@@ -4397,7 +4427,7 @@ body {
 .portal-sidebar-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 45;
+  z-index: 2100;
   border: 0;
   background: rgba(19, 9, 9, 0.38);
   backdrop-filter: blur(4px);
@@ -4408,7 +4438,7 @@ body {
   top: 0;
   bottom: 0;
   left: 0;
-  z-index: 50;
+  z-index: 2200;
   width: 13rem;
   display: flex;
   flex-direction: column;
