@@ -59,13 +59,12 @@ export default function SignupPage() {
   }
 
   return (
-    <section className="relative min-h-screen overflow-hidden bg-[#FDF8F3]">
-      {/* Animated mesh gradient background */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 mesh-gradient-bg" />
-      {/* Subtle geometric grain + watermark */}
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 mesh-noise" />
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 flex items-center justify-center">
-        <div className="hch-watermark select-none">HCH</div>
+    <section className="auth-surface">
+      <div aria-hidden="true" className="auth-blob auth-blob-1" />
+      <div aria-hidden="true" className="auth-blob auth-blob-2" />
+      <div aria-hidden="true" className="auth-blob auth-blob-3" />
+      <div aria-hidden="true" className="auth-watermark select-none">
+        HCH
       </div>
 
       <div className="relative min-h-screen px-4 py-10 sm:px-6 lg:px-8">
@@ -104,7 +103,7 @@ export default function SignupPage() {
                 className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_55%),radial-gradient(circle_at_bottom,rgba(128,0,0,0.10),transparent_55%)] blur-2xl"
               />
 
-              <div className="relative mx-auto w-full max-w-md rounded-3xl border border-white/40 bg-white/65 p-6 shadow-xl backdrop-blur-2xl sm:p-8">
+              <div className="relative mx-auto w-full max-w-md rounded-3xl border border-white/50 bg-white/80 p-6 shadow-[0_30px_70px_rgba(69,9,9,0.18),0_10px_25px_rgba(0,0,0,0.08)] backdrop-blur-md sm:p-8">
                 <div className="flex items-center gap-3">
                   <Image
                     src="/hch-logo.svg"

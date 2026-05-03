@@ -106,8 +106,15 @@ export default function LoginPage() {
   const activeKicker = loginModes.find((mode) => mode.key === activeMode)?.kicker ?? "";
 
   return (
-    <section className="min-h-screen bg-[#FDF8F3]">
-      <div className="min-h-screen px-4 py-10 sm:px-6 lg:px-8">
+    <section className="auth-surface">
+      <div aria-hidden="true" className="auth-blob auth-blob-1" />
+      <div aria-hidden="true" className="auth-blob auth-blob-2" />
+      <div aria-hidden="true" className="auth-blob auth-blob-3" />
+      <div aria-hidden="true" className="auth-watermark select-none">
+        HCH
+      </div>
+
+      <div className="relative min-h-screen px-4 py-10 sm:px-6 lg:px-8">
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center justify-center">
           <div className="grid w-full grid-cols-1 items-stretch gap-8 lg:grid-cols-2">
             <div className="hidden lg:flex flex-col justify-center">
@@ -143,7 +150,7 @@ export default function LoginPage() {
                 className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_55%),radial-gradient(circle_at_bottom,rgba(128,0,0,0.10),transparent_55%)] blur-2xl"
               />
 
-              <div className="relative mx-auto w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-xl sm:p-8">
+              <div className="relative mx-auto w-full max-w-md rounded-3xl border border-white/50 bg-white/80 p-6 shadow-[0_30px_70px_rgba(69,9,9,0.18),0_10px_25px_rgba(0,0,0,0.08)] backdrop-blur-md sm:p-8">
                 <div className="flex items-center gap-3">
                   <Image
                     src="/hch-logo.svg"

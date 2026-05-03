@@ -48,26 +48,88 @@ body {
 }
 
 /* Premium mesh gradient helpers (used on auth screens). */
-.mesh-gradient-bg {
+.auth-surface {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #fdf8f3;
+}
+
+.auth-surface::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
   background:
     radial-gradient(900px 520px at 12% 10%, rgba(128, 0, 0, 0.22), transparent 62%),
-    radial-gradient(760px 520px at 90% 18%, rgba(212, 175, 55, 0.24), transparent 60%),
-    radial-gradient(860px 620px at 58% 88%, rgba(255, 250, 245, 0.9), transparent 62%),
+    radial-gradient(760px 520px at 90% 18%, rgba(212, 175, 55, 0.22), transparent 60%),
+    radial-gradient(860px 620px at 58% 88%, rgba(255, 250, 245, 0.92), transparent 62%),
     radial-gradient(720px 520px at 18% 82%, rgba(128, 0, 0, 0.12), transparent 58%),
     linear-gradient(180deg, #fbf5ef 0%, #f6eee7 100%);
   filter: saturate(1.05);
   animation: mesh-drift 14s ease-in-out infinite alternate;
 }
 
-.mesh-noise {
-  opacity: 0.22;
+/* Very subtle "sewing pattern" grid/lines */
+.auth-surface::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image:
+    linear-gradient(to right, rgba(40, 20, 20, 0.9) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(40, 20, 20, 0.9) 1px, transparent 1px),
+    radial-gradient(circle at 30% 20%, rgba(128, 0, 0, 0.9) 1px, transparent 2px),
+    radial-gradient(circle at 70% 65%, rgba(212, 175, 55, 0.9) 1px, transparent 2px);
+  background-size: 44px 44px, 44px 44px, 220px 220px, 260px 260px;
   mix-blend-mode: multiply;
-  background-image: radial-gradient(rgba(0, 0, 0, 0.06) 1px, transparent 1px);
-  background-size: 22px 22px;
-  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.5), transparent 70%);
 }
 
-.hch-watermark {
+.auth-blob {
+  position: absolute;
+  pointer-events: none;
+  width: 42rem;
+  height: 42rem;
+  border-radius: 999px;
+  filter: blur(52px);
+  opacity: 0.16;
+  transform: translate3d(0, 0, 0);
+  animation: blob-float 18s ease-in-out infinite alternate;
+}
+
+.auth-blob-1 {
+  top: -18rem;
+  left: -16rem;
+  background: radial-gradient(circle at 30% 30%, rgba(128, 0, 0, 0.85), transparent 62%);
+  animation-duration: 20s;
+}
+
+.auth-blob-2 {
+  bottom: -22rem;
+  right: -18rem;
+  background: radial-gradient(circle at 30% 30%, rgba(212, 175, 55, 0.85), transparent 62%);
+  opacity: 0.13;
+  animation-duration: 22s;
+}
+
+.auth-blob-3 {
+  top: 8rem;
+  right: -26rem;
+  width: 36rem;
+  height: 36rem;
+  background: radial-gradient(circle at 30% 30%, rgba(128, 0, 0, 0.55), transparent 66%);
+  opacity: 0.09;
+  animation-duration: 24s;
+}
+
+.auth-watermark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
   font-family: var(--font-montserrat), var(--font-geist-sans), sans-serif;
   font-weight: 800;
   letter-spacing: 0.18em;
@@ -85,6 +147,16 @@ body {
 
   to {
     transform: translate3d(1.2%, 1%, 0) scale(1.06);
+  }
+}
+
+@keyframes blob-float {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+
+  to {
+    transform: translate3d(2.2rem, -1.6rem, 0) scale(1.06);
   }
 }
 
