@@ -48,12 +48,14 @@ export function PortalShell({ children }) {
       return;
     }
 
-    if (!isAuthenticated && pathname !== "/login") {
+    const publicRoutes = new Set(["/login", "/signup", "/register"]);
+
+    if (!isAuthenticated && !publicRoutes.has(pathname)) {
       router.replace("/login");
       return;
     }
 
-    if (isAuthenticated && pathname === "/login") {
+    if (isAuthenticated && publicRoutes.has(pathname)) {
       router.replace("/");
     }
   }, [isAuthenticated, mounted, pathname, router]);
@@ -84,7 +86,7 @@ export function PortalShell({ children }) {
     return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
   }
 
-  if (pathname === "/login") {
+  if (pathname === "/login" || pathname === "/signup" || pathname === "/register") {
     return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
   }
 
