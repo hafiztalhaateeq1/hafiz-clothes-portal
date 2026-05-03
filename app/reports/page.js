@@ -555,14 +555,18 @@ export default function ReportsPage() {
             <div className="reports-loading-row" />
           ) : (
             <div className="reports-card-body">
-              <div className="reports-mini-grid">
-                <div className="reports-mini">
-                  <span>{ui.todaySales}</span>
-                  <strong>{daily.sales.length}</strong>
+              <div className="reports-mini-grid grid grid-cols-2 gap-3 md:gap-4">
+                <div className="reports-mini flex min-h-[100px] flex-col justify-between rounded-2xl border border-white/30 bg-white/60 p-4 text-left shadow-[0_10px_28px_rgba(69,9,9,0.06)] backdrop-blur-xl">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+                    {ui.todaySales}
+                  </span>
+                  <strong className="text-2xl font-bold text-[#800000]">{daily.sales.length}</strong>
                 </div>
-                <div className="reports-mini">
-                  <span>{ui.todayExpenses}</span>
-                  <strong>{daily.expenses.length}</strong>
+                <div className="reports-mini flex min-h-[100px] flex-col justify-between rounded-2xl border border-white/30 bg-white/60 p-4 text-left shadow-[0_10px_28px_rgba(69,9,9,0.06)] backdrop-blur-xl">
+                  <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-500">
+                    {ui.todayExpenses}
+                  </span>
+                  <strong className="text-2xl font-bold text-[#800000]">{daily.expenses.length}</strong>
                 </div>
               </div>
             </div>
