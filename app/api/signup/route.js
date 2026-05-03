@@ -125,12 +125,12 @@ export async function POST(request) {
     }
 
     // Create Supabase Auth account using phone-as-email.
-    const authSignup = await signUpAuthAccount({
-      fullName: name,
-      phoneNumber: phone,
-      password,
-      role: userType,
-    });
+  const authSignup = await signUpAuthAccount({
+    fullName: name,
+    phoneNumber: phone,
+    password,
+    role: userType === "wholesale" && status !== "active" ? "wholesale_pending" : userType,
+  });
 
     console.log("API SIGNUP auth:", {
       phoneAsEmail: authSignup.phoneAsEmail,

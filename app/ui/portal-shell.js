@@ -67,12 +67,20 @@ export function PortalShell({ children }) {
   }, [isAuthenticated, mounted, pathname, router, session?.role]);
 
   const languageClass = mounted ? `language-${language}` : "language-en";
-  const roleLabel =
-    session?.role === "admin"
-      ? t.shell?.administrator ?? "Administrator"
-      : session?.role === "wholesale"
-        ? "Wholesale Customer"
-        : "Retail Customer";
+
+  const roleMeta = useMemo(() => {
+    const role = String(session?.role ?? "").toLowerCase().trim();
+    if (role === "admin") {
+      return { label: t.shell?.administrator ?? "Administrator", badgeClass: "is-admin" };
+    }
+    if (role === "wholesale") {
+      return { label: "Wholesale Partner", badgeClass: "is-wholesale" };
+    }
+    if (role === "retail") {
+      return { label: "Retail Customer", badgeClass: "is-retail" };
+    }
+    return { label: "Retail Customer", badgeClass: "is-retail" };
+  }, [session?.role, t]);
   const shellCopy = useMemo(
     () => ({
       settingsTitle: t.shell?.settingsTitle ?? "Settings",
@@ -262,15 +270,20 @@ export function PortalShell({ children }) {
                 <span className="portal-profile-avatar" aria-hidden="true">
                   <CircleUserRound size={18} strokeWidth={2.1} />
                 </span>
-                {!isCollapsed ? (
-                  <div className="portal-profile-copy">
-                    <p className="portal-profile-name">{session?.displayName ?? "Hafiz Talha"}</p>
-                  </div>
-                ) : null}
-              </button>
+                 {!isCollapsed ? (
+                   <div className="portal-profile-copy">
+                     <p className="portal-profile-name">{session?.displayName ?? "Hafiz Talha"}</p>
+                      <span className={`portal-profile-role ${roleMeta.badgeClass}`}>
+                        {roleMeta.label}
+                      </span>
+                   </div>
+                 ) : null}
+               </button>
               {isProfileOpen ? (
                 <div className="portal-profile-popover" role="menu" aria-label={shellCopy.profile}>
-                  <span className="portal-role-badge">{shellCopy.administrator}</span>
+                  <span className={`portal-role-badge ${roleMeta.badgeClass}`}>
+                    {roleMeta.label}
+                  </span>
                   <button
                     type="button"
                     className="portal-popover-action"
@@ -335,7 +348,7 @@ export function PortalShell({ children }) {
             <div className="portal-topbar-actions shrink-0">
               <div className="portal-session-badge hidden md:flex">
                 <strong>{session?.displayName ?? "User"}</strong>
-                <span>{roleLabel}</span>
+                <span>{roleMeta.label}</span>
               </div>
               <div className="hidden md:block">
                 <LanguageSwitcher />
