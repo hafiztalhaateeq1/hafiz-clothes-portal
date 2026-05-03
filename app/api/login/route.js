@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import crypto from "node:crypto";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -74,7 +73,7 @@ export async function POST(request) {
       return response;
     }
 
-    // Customers: phone-based lookup (password required).
+    // Customers: phone-as-email sign-in (password required).
     const phone = identifierRaw.replace(/[^\d]/g, "");
 
     if (!phone) {
@@ -85,82 +84,66 @@ export async function POST(request) {
     }
 
     if (!password) {
-      return NextResponse.json({ error: "Invalid Credentials" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid Password" }, { status: 401 });
     }
 
-    // Try to read a password field if it exists. We support either `password` (legacy)
-    // or `password_hash` (sha256 hex).
-    let lookup = await supabase
-      .from("clients")
-      .select("id, name, phone, trust_level, password, password_hash")
-      .eq("phone", phone)
-      .limit(1)
-      .maybeSingle();
+    const emailIdentifier = `${phone}@hch.com`;
 
-    if (lookup.error) {
-      const msg = String(lookup.error.message ?? "");
+    const authResult = await supabase.auth.signInWithPassword({
+      email: emailIdentifier,
+      password,
+    });
 
-      if (/password_hash/i.test(msg)) {
-        lookup = await supabase
-          .from("clients")
-          .select("id, name, phone, trust_level, password")
-          .eq("phone", phone)
-          .limit(1)
-          .maybeSingle();
+    console.log("API LOGIN auth:", {
+      emailIdentifier,
+      ok: !authResult.error,
+      error: authResult.error?.message ?? null,
+      userId: authResult.data?.user?.id ?? null,
+    });
+
+    if (authResult.error) {
+      // Distinguish "not found" vs "wrong password" by checking clients existence.
+      const existing = await supabase
+        .from("clients")
+        .select("id")
+        .eq("phone", phone)
+        .limit(1)
+        .maybeSingle();
+
+      if (existing.data) {
+        return NextResponse.json({ error: "Invalid Password" }, { status: 401 });
       }
 
-      if (lookup.error && /\bpassword\b/i.test(String(lookup.error.message ?? ""))) {
-        lookup = await supabase
-          .from("clients")
-          .select("id, name, phone, trust_level")
-          .eq("phone", phone)
-          .limit(1)
-          .maybeSingle();
-      }
-    }
-
-    const { data: client, error } = lookup;
-
-    if (error) {
-      return NextResponse.json(
-        { error: "Unable to verify this account right now." },
-        { status: 500 }
-      );
-    }
-
-    if (!client) {
       return NextResponse.json(
         { error: "Account not found. Please Sign Up first." },
         { status: 404 }
       );
     }
 
-    const storedHash = client?.password_hash ? String(client.password_hash) : "";
-    const storedPassword = client?.password ? String(client.password) : "";
+    const user = authResult.data?.user;
+    const metaRole = String(user?.user_metadata?.role ?? "").toLowerCase().trim();
 
-    if (storedHash) {
-      const sha = crypto.createHash("sha256").update(password, "utf8").digest("hex");
-      if (sha !== storedHash) {
-        return NextResponse.json({ error: "Invalid Password" }, { status: 401 });
-      }
-    } else if (storedPassword) {
-      if (password !== storedPassword) {
-        return NextResponse.json({ error: "Invalid Password" }, { status: 401 });
-      }
-    } else {
-      return NextResponse.json(
-        { error: "Password authentication is not configured for customer accounts yet." },
-        { status: 500 }
-      );
+    // If metadata doesn't contain role, fall back to clients trust_level inference.
+    let effectiveRole = metaRole === "admin" || metaRole === "wholesale" || metaRole === "retail"
+      ? metaRole
+      : "retail";
+
+    const { data: client } = await supabase
+      .from("clients")
+      .select("id, name, phone, trust_level")
+      .eq("phone", phone)
+      .limit(1)
+      .maybeSingle();
+
+    if (client && metaRole !== "admin") {
+      effectiveRole = inferCustomerRole(client);
     }
-
-    const effectiveRole = inferCustomerRole(client);
 
     const session = {
       role: effectiveRole,
-      customerId: String(client.id ?? ""),
-      displayName: client.name ?? "Customer",
-      phone: client.phone ?? phone,
+      customerId: client?.id ? String(client.id) : null,
+      displayName: client?.name ?? user?.user_metadata?.full_name ?? "Customer",
+      phone,
     };
 
     const response = NextResponse.json({
