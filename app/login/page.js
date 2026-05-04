@@ -199,8 +199,8 @@ export default function LoginPage() {
         <div className="mx-auto w-full max-w-6xl">
           <div className="relative lg:flex lg:items-start lg:justify-between">
             <header className="flex justify-center pt-4 lg:flex-none lg:justify-start lg:pt-4">
-              <div className="rounded-full border border-white/65 bg-white/45 px-4 py-2.5 shadow-lg shadow-[#800000]/8 backdrop-blur-xl sm:px-5">
-                <div className="flex flex-col items-center gap-1.5 text-center lg:flex-row lg:items-center lg:gap-2.5 lg:text-left">
+              <div className="min-w-max w-[80%] rounded-full border border-white/65 bg-white/45 px-8 py-2 shadow-lg shadow-[#800000]/8 backdrop-blur-xl sm:w-auto sm:px-5 sm:py-2.5">
+                <div className="flex flex-col items-center gap-1 text-center lg:flex-row lg:items-center lg:gap-2.5 lg:text-left">
                   <Image
                     src="/hch-logo.svg"
                     alt="HCH logo"
@@ -213,7 +213,7 @@ export default function LoginPage() {
                     <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-[#b58a00]">
                       {copy.brandName}
                     </p>
-                    <p className={`mt-0.5 text-[11px] font-medium tracking-[0.1em] text-[#7b4a4a] ${isUrdu ? "urdu-text" : ""}`}>
+                    <p className={`mt-0.5 text-xs font-medium tracking-[0.08em] text-[#7b4a4a] whitespace-nowrap ${isUrdu ? "urdu-text" : ""}`}>
                       {copy.tagline}
                     </p>
                   </div>
