@@ -183,6 +183,28 @@ export default function LoginPage() {
       dir={isUrdu ? "rtl" : "ltr"}
       lang={isUrdu ? "ur" : "en"}
     >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 left-0 hidden w-32 opacity-50 md:block lg:w-48"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, rgba(128, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(128, 0, 0, 0.05) 1px, transparent 1px)",
+          backgroundSize: "20px 20px",
+          maskImage: "linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0))",
+          WebkitMaskImage: "linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0))",
+        }}
+      />
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-y-0 right-0 hidden w-32 opacity-50 md:block lg:w-48"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, rgba(128, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(128, 0, 0, 0.05) 1px, transparent 1px)",
+          backgroundSize: "20px 20px",
+          maskImage: "linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0))",
+          WebkitMaskImage: "linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0))",
+        }}
+      />
       <div aria-hidden="true" className="auth-fabric-wave" />
       <div
         aria-hidden="true"
@@ -199,7 +221,7 @@ export default function LoginPage() {
         <div className="mx-auto w-full max-w-6xl">
           <div className="relative lg:flex lg:items-start lg:justify-between">
             <header className="relative z-10 flex justify-center pt-20 lg:flex-none lg:justify-start lg:pt-4">
-              <div className="min-w-max w-[80%] rounded-full border border-white/65 bg-white/45 px-8 py-2 shadow-lg shadow-[#800000]/8 backdrop-blur-xl sm:w-auto sm:px-5 sm:py-2.5">
+              <div className="z-10 min-w-max w-[80%] rounded-full border border-white/65 bg-white px-8 py-2 shadow-lg shadow-[#800000]/8 backdrop-blur-xl sm:w-auto sm:px-5 sm:py-2.5">
                 <div className="flex flex-col items-center gap-1 text-center lg:flex-row lg:items-center lg:gap-2.5 lg:text-left">
                   <Image
                     src="/hch-logo.svg"
@@ -222,7 +244,7 @@ export default function LoginPage() {
             </header>
 
             <div className="absolute right-0 top-0 z-30 sm:top-2 lg:static lg:ml-6 lg:pt-4">
-              <div className="flex items-center gap-2 rounded-full border border-white/70 bg-white/55 px-3 py-2 text-[0.7rem] font-semibold tracking-[0.2em] text-[#6f5555] shadow-lg shadow-[#800000]/8 backdrop-blur-xl sm:text-xs">
+              <div className="z-10 flex items-center gap-2 rounded-full border border-white/70 bg-white px-3 py-2 text-[0.7rem] font-semibold tracking-[0.2em] text-[#6f5555] shadow-lg shadow-[#800000]/8 backdrop-blur-xl sm:text-xs">
                 <button
                   type="button"
                   onClick={() => setLanguage("en")}
@@ -253,7 +275,7 @@ export default function LoginPage() {
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-start justify-center pt-16 lg:min-h-0 lg:justify-start lg:pt-8">
           <div className="grid w-full grid-cols-1 items-stretch gap-8 lg:grid-cols-[1.1fr_minmax(0,28rem)]">
             <div className="hidden lg:flex flex-col justify-center">
-              <div className="rounded-3xl border border-white/60 bg-white/40 p-10 shadow-xl backdrop-blur-xl">
+              <div className="z-10 rounded-3xl border border-white/60 bg-white p-10 shadow-xl backdrop-blur-xl">
                 <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#b58a00]">
                   {copy.desktopEyebrow}
                 </p>
@@ -273,7 +295,7 @@ export default function LoginPage() {
                 className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_55%),radial-gradient(circle_at_bottom,rgba(128,0,0,0.10),transparent_55%)] blur-2xl"
               />
 
-              <div className="relative mx-auto w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_28px_60px_rgba(69,9,9,0.16)] sm:p-8">
+              <div className="relative z-10 mx-auto w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_28px_60px_rgba(69,9,9,0.16)] sm:p-8">
                 <div>
                   <h2 className={`text-base text-[#800000] sm:text-lg ${isUrdu ? "urdu-text font-semibold" : "font-[650]"}`}>
                     {step === "select" ? copy.chooseAccess : roleCopy.title}
