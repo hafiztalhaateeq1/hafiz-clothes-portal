@@ -68,6 +68,7 @@ body {
     linear-gradient(180deg, #fff8ee 0%, #fff2e4 100%);
   filter: blur(48px) saturate(1.2);
   transform: scale(1.06);
+  animation: mesh-drift 32s ease-in-out infinite alternate;
 }
 
 /* Very subtle "sewing pattern" grid/lines */
@@ -149,6 +150,26 @@ body {
   text-transform: uppercase;
 }
 
+.auth-fabric-wave {
+  position: absolute;
+  inset: -12% -6%;
+  pointer-events: none;
+  opacity: 0.3;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(128, 0, 0, 0.08), transparent 28%),
+    radial-gradient(circle at 78% 16%, rgba(212, 175, 55, 0.12), transparent 24%),
+    repeating-linear-gradient(
+      115deg,
+      rgba(255, 255, 255, 0.16) 0,
+      rgba(255, 255, 255, 0.16) 2px,
+      transparent 2px,
+      transparent 20px
+    );
+  filter: blur(1px);
+  transform: translate3d(0, 0, 0);
+  animation: fabric-wave 38s ease-in-out infinite alternate;
+}
+
 @keyframes mesh-drift {
   from {
     transform: translate3d(-1.2%, -1%, 0) scale(1.02);
@@ -166,6 +187,20 @@ body {
 
   to {
     transform: translate3d(2.2rem, -1.6rem, 0) scale(1.06);
+  }
+}
+
+@keyframes fabric-wave {
+  from {
+    transform: translate3d(-1.5%, 0, 0) scale(1.01) rotate(0deg);
+  }
+
+  50% {
+    transform: translate3d(0.8%, -1%, 0) scale(1.03) rotate(-0.4deg);
+  }
+
+  to {
+    transform: translate3d(1.4%, 1.1%, 0) scale(1.05) rotate(0.3deg);
   }
 }
 
