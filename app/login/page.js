@@ -122,6 +122,10 @@ export default function LoginPage() {
 
   return (
     <section className="auth-surface">
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute left-0 top-0 h-72 w-72 bg-[radial-gradient(circle_at_top_left,rgba(128,0,0,0.22),transparent_68%)] blur-3xl sm:h-96 sm:w-96"
+      />
       <div aria-hidden="true" className="auth-blob auth-blob-1" />
       <div aria-hidden="true" className="auth-blob auth-blob-2" />
       <div aria-hidden="true" className="auth-blob auth-blob-3" />
@@ -129,29 +133,40 @@ export default function LoginPage() {
         HCH
       </div>
 
-      <div className="relative min-h-screen px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center justify-center">
-          <div className="grid w-full grid-cols-1 items-stretch gap-8 lg:grid-cols-2">
+      <div className="relative min-h-screen px-4 pt-6 pb-10 sm:px-6 lg:px-8">
+        <header className="mx-auto flex w-full max-w-6xl justify-center lg:justify-start">
+          <div className="rounded-full border border-white/65 bg-white/45 px-5 py-3 shadow-lg shadow-[#800000]/8 backdrop-blur-xl">
+            <div className="flex flex-col items-center gap-2 text-center lg:flex-row lg:items-center lg:gap-3 lg:text-left">
+              <Image
+                src="/hch-logo.svg"
+                alt="HCH logo"
+                width={48}
+                height={48}
+                className="h-12 w-12"
+                priority
+              />
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.32em] text-[#b58a00]">
+                  Hafiz Clothes House
+                </p>
+                <p className="mt-1 text-xs font-medium tracking-[0.18em] text-[#7b4a4a]">
+                  Premium Quality Since 1986
+                </p>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-start justify-center pt-24 lg:items-center lg:pt-10">
+          <div className="grid w-full grid-cols-1 items-stretch gap-8 lg:grid-cols-[1.1fr_minmax(0,28rem)]">
             <div className="hidden lg:flex flex-col justify-center">
               <div className="rounded-3xl border border-white/60 bg-white/40 p-10 shadow-xl backdrop-blur-xl">
-                <div className="flex items-center gap-4">
-                  <Image
-                    src="/hch-logo.svg"
-                    alt="HCH logo"
-                    width={56}
-                    height={56}
-                    className="h-14 w-14"
-                    priority
-                  />
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#b58a00]">
-                      Hafiz Clothes House
-                    </p>
-                    <h1 className="truncate font-[650] text-3xl leading-tight text-[#800000]">
-                      Sign in
-                    </h1>
-                  </div>
-                </div>
+                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#b58a00]">
+                  Secure access
+                </p>
+                <h1 className="mt-3 font-[650] text-3xl leading-tight text-[#800000]">
+                  Sign in to continue with the right workspace.
+                </h1>
 
                 <p className="mt-6 text-sm leading-relaxed text-[#5b3a3a]">
                   Access your dashboard, ledger, customers, and reports with the right role.
@@ -166,23 +181,10 @@ export default function LoginPage() {
               />
 
               <div className="relative mx-auto w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl sm:p-8">
-                <div className="flex items-center gap-3">
-                  <Image
-                    src="/hch-logo.svg"
-                    alt="HCH logo"
-                    width={44}
-                    height={44}
-                    className="h-11 w-11"
-                    priority
-                  />
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-[#b58a00]">
-                      Hafiz Clothes House
-                    </p>
-                    <h2 className="truncate text-base font-[650] text-[#800000] sm:text-lg">
-                      {step === "select" ? "Choose access" : roleCopy.title}
-                    </h2>
-                  </div>
+                <div>
+                  <h2 className="text-base font-[650] text-[#800000] sm:text-lg">
+                    {step === "select" ? "Choose access" : roleCopy.title}
+                  </h2>
                 </div>
 
                 <p className="mt-3 text-sm text-[#5b3a3a]">{roleCopy.hint}</p>
