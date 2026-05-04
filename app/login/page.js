@@ -195,10 +195,10 @@ export default function LoginPage() {
         HCH
       </div>
 
-      <div className="relative min-h-screen px-4 pt-6 pb-10 sm:px-6 lg:px-8">
+      <div className="relative min-h-screen px-4 pt-8 pb-10 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-6xl">
           <div className="relative lg:flex lg:items-start lg:justify-between">
-            <header className="flex justify-center pt-4 lg:flex-none lg:justify-start lg:pt-4">
+            <header className="relative z-10 flex justify-center pt-20 lg:flex-none lg:justify-start lg:pt-4">
               <div className="min-w-max w-[80%] rounded-full border border-white/65 bg-white/45 px-8 py-2 shadow-lg shadow-[#800000]/8 backdrop-blur-xl sm:w-auto sm:px-5 sm:py-2.5">
                 <div className="flex flex-col items-center gap-1 text-center lg:flex-row lg:items-center lg:gap-2.5 lg:text-left">
                   <Image
@@ -221,7 +221,7 @@ export default function LoginPage() {
               </div>
             </header>
 
-            <div className="absolute right-0 top-1 z-20 sm:top-3 lg:static lg:ml-6 lg:pt-4">
+            <div className="absolute right-0 top-0 z-30 sm:top-2 lg:static lg:ml-6 lg:pt-4">
               <div className="flex items-center gap-2 rounded-full border border-white/70 bg-white/55 px-3 py-2 text-[0.7rem] font-semibold tracking-[0.2em] text-[#6f5555] shadow-lg shadow-[#800000]/8 backdrop-blur-xl sm:text-xs">
                 <button
                   type="button"
@@ -243,14 +243,14 @@ export default function LoginPage() {
               </div>
             </div>
           </div>
-          <div className="pointer-events-none mx-auto mt-8 max-w-4xl px-4 text-center sm:mt-10 lg:mt-7">
+          <div className="pointer-events-none mx-auto mt-12 max-w-4xl px-4 text-center sm:mt-12 lg:mt-7">
             <p className={`text-balance text-[1.15rem] leading-relaxed text-[#800000]/38 sm:text-[1.5rem] sm:leading-relaxed lg:text-[1.9rem] ${isUrdu ? "urdu-text" : "font-[500]"}`}>
               {copy.motto}
             </p>
           </div>
         </div>
 
-        <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-start justify-center pt-14 lg:min-h-0 lg:justify-start lg:pt-8">
+        <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-start justify-center pt-16 lg:min-h-0 lg:justify-start lg:pt-8">
           <div className="grid w-full grid-cols-1 items-stretch gap-8 lg:grid-cols-[1.1fr_minmax(0,28rem)]">
             <div className="hidden lg:flex flex-col justify-center">
               <div className="rounded-3xl border border-white/60 bg-white/40 p-10 shadow-xl backdrop-blur-xl">
