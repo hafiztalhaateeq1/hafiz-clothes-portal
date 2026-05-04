@@ -185,25 +185,11 @@ export default function LoginPage() {
     >
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 left-0 hidden w-32 opacity-50 md:block lg:w-48"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, rgba(128, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(128, 0, 0, 0.05) 1px, transparent 1px)",
-          backgroundSize: "20px 20px",
-          maskImage: "linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0))",
-          WebkitMaskImage: "linear-gradient(to right, rgba(0,0,0,1), rgba(0,0,0,0))",
-        }}
+        className="auth-side-grid auth-side-grid-left pointer-events-none absolute inset-y-0 left-0 w-20 sm:w-24 md:w-32 lg:w-48"
       />
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 right-0 hidden w-32 opacity-50 md:block lg:w-48"
-        style={{
-          backgroundImage:
-            "linear-gradient(to right, rgba(128, 0, 0, 0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(128, 0, 0, 0.05) 1px, transparent 1px)",
-          backgroundSize: "20px 20px",
-          maskImage: "linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0))",
-          WebkitMaskImage: "linear-gradient(to left, rgba(0,0,0,1), rgba(0,0,0,0))",
-        }}
+        className="auth-side-grid auth-side-grid-right pointer-events-none absolute inset-y-0 right-0 w-20 sm:w-24 md:w-32 lg:w-48"
       />
       <div aria-hidden="true" className="auth-fabric-wave" />
       <div
