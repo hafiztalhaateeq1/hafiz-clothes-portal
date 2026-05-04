@@ -250,7 +250,7 @@ export default function LoginPage() {
           </div>
         </div>
 
-        <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-start justify-center pt-14 lg:items-center lg:pt-3">
+        <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-start justify-center pt-14 lg:min-h-0 lg:justify-start lg:pt-8">
           <div className="grid w-full grid-cols-1 items-stretch gap-8 lg:grid-cols-[1.1fr_minmax(0,28rem)]">
             <div className="hidden lg:flex flex-col justify-center">
               <div className="rounded-3xl border border-white/60 bg-white/40 p-10 shadow-xl backdrop-blur-xl">
@@ -273,7 +273,7 @@ export default function LoginPage() {
                 className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_55%),radial-gradient(circle_at_bottom,rgba(128,0,0,0.10),transparent_55%)] blur-2xl"
               />
 
-              <div className="relative mx-auto w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl sm:p-8">
+              <div className="relative mx-auto w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_28px_60px_rgba(69,9,9,0.16)] sm:p-8">
                 <div>
                   <h2 className={`text-base text-[#800000] sm:text-lg ${isUrdu ? "urdu-text font-semibold" : "font-[650]"}`}>
                     {step === "select" ? copy.chooseAccess : roleCopy.title}
