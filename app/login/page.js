@@ -207,7 +207,7 @@ export default function LoginPage() {
         <div className="mx-auto w-full max-w-6xl">
           <div className="relative lg:flex lg:items-start lg:justify-between">
             <header className="relative z-10 flex justify-center pt-20 lg:flex-none lg:justify-start lg:pt-4">
-              <div className="z-10 min-w-max w-[80%] rounded-full border border-white/65 bg-white px-8 py-2 shadow-lg shadow-[#800000]/8 backdrop-blur-xl sm:w-auto sm:px-5 sm:py-2.5">
+              <div className="z-10 min-w-max w-[80%] rounded-full border border-white/20 bg-white/40 px-8 py-2 shadow-lg shadow-[#800000]/8 backdrop-blur-lg sm:w-auto sm:px-5 sm:py-2.5">
                 <div className="flex flex-col items-center gap-1 text-center lg:flex-row lg:items-center lg:gap-2.5 lg:text-left">
                   <Image
                     src="/hch-logo.svg"
