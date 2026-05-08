@@ -96,6 +96,13 @@ function getTransactionCustomerName(entry) {
   return String(entry.client_id ?? "").trim();
 }
 
+function getCustomerDeleteKey(customer) {
+  return String(
+    customer?.id ??
+      `${customer?.name ?? "customer"}-${customer?.phone ?? "phone"}-${customer?.city ?? "city"}`
+  );
+}
+
 function normalizeCustomers(data, copy) {
   return (data ?? []).map((customer, index) => ({
     id: String(
@@ -622,38 +629,93 @@ export default function CustomersPage() {
   }
 
   async function handleDelete(customer) {
-    const customerKey = `${customer.name}-${customer.phone}-${customer.city}`;
+    const customerKey = getCustomerDeleteKey(customer);
     setDeleteKey(customerKey);
     setSuccessMessage("");
 
-    const { error } = await supabase
-      .from("clients")
-      .delete()
-      .match({
-        name: customer.name,
-        phone: customer.phone,
-        city: customer.city,
-      });
+    try {
+      const customerId = String(customer?.id ?? "").trim();
 
-    if (error) {
-      console.error("Supabase customer delete error:", error);
+      if (!customerId) {
+        alert("Unable to delete this customer because the record id is missing.");
+        return;
+      }
+
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+      if (authError) {
+        console.error("Supabase auth check failed before customer delete:", authError);
+        console.log(authError);
+      }
+
+      const supabaseUserId = authData?.user?.id ?? null;
+      if (!supabaseUserId) {
+        console.warn(
+          "Customer delete is running without a Supabase-authenticated user. If RLS requires authenticated DELETE access on public.clients, Supabase will reject this request."
+        );
+      }
+
+      const hasCachedHistory = allHisabEntries.some(
+        (entry) => String(entry.client_id ?? "").trim() === customerId
+      );
+
+      if (hasCachedHistory) {
+        setPendingDeleteCustomer(null);
+        alert("Cannot delete customer with active history");
+        return;
+      }
+
+      const ledgerHistoryResult = await supabase
+        .from("ledger")
+        .select("id", { count: "exact", head: true })
+        .eq("client_id", customerId);
+
+      if (ledgerHistoryResult.error) {
+        console.error("Supabase ledger history check failed:", ledgerHistoryResult.error);
+        console.log(ledgerHistoryResult.error);
+        return;
+      }
+
+      if ((ledgerHistoryResult.count ?? 0) > 0) {
+        setPendingDeleteCustomer(null);
+        alert("Cannot delete customer with active history");
+        return;
+      }
+
+      const { data: deletedRows, error } = await supabase
+        .from("clients")
+        .delete()
+        .eq("id", customerId)
+        .select("id");
+
+      console.log(error);
+
+      if (error) {
+        console.error("Supabase customer delete error:", error);
+
+        if (
+          String(error.message ?? "").toLowerCase().includes("permission") ||
+          String(error.message ?? "").toLowerCase().includes("row-level security") ||
+          String(error.code ?? "") === "42501"
+        ) {
+          alert("Authenticated user does not have DELETE permission on customers in Supabase.");
+        }
+
+        return;
+      }
+
+      if (!deletedRows || deletedRows.length === 0) {
+        alert("Delete did not remove any rows. Check Supabase RLS DELETE policy for the customers table.");
+        return;
+      }
+
+      setDirectoryClients((currentCustomers) =>
+        currentCustomers.filter((item) => String(item.id ?? "") !== customerId)
+      );
+      setPendingDeleteCustomer(null);
+      setSuccessMessage(customerCopy.deleteSuccess);
+    } finally {
       setDeleteKey("");
-      return;
     }
-
-    setDirectoryClients((currentCustomers) =>
-      currentCustomers.filter(
-        (item) =>
-          !(
-            item.name === customer.name &&
-            item.phone === customer.phone &&
-            item.city === customer.city
-          )
-      )
-    );
-    setDeleteKey("");
-    setPendingDeleteCustomer(null);
-    setSuccessMessage(customerCopy.deleteSuccess);
   }
 
   function handleSendReminder(customer) {
@@ -1083,9 +1145,7 @@ export default function CustomersPage() {
                           type="button"
                           className="customers-edit-button"
                           onClick={() => openModal(customer)}
-                          disabled={
-                            deleteKey === `${customer.name}-${customer.phone}-${customer.city}`
-                          }
+                          disabled={deleteKey === getCustomerDeleteKey(customer)}
                           aria-label={`Edit ${customer.name}`}
                         >
                           <Pencil size={15} aria-hidden="true" />
@@ -1095,11 +1155,9 @@ export default function CustomersPage() {
                           type="button"
                           className="customers-delete-button"
                           onClick={() => openDeleteConfirmation(customer)}
-                          disabled={
-                            deleteKey === `${customer.name}-${customer.phone}-${customer.city}`
-                          }
+                          disabled={deleteKey === getCustomerDeleteKey(customer)}
                       >
-                        {deleteKey === `${customer.name}-${customer.phone}-${customer.city}`
+                        {deleteKey === getCustomerDeleteKey(customer)
                           ? customerCopy.deleting
                           : customerCopy.delete}
                         </button>
@@ -1281,8 +1339,7 @@ export default function CustomersPage() {
                 onClick={() => handleDelete(pendingDeleteCustomer)}
                 disabled={Boolean(deleteKey)}
               >
-                {deleteKey ===
-                `${pendingDeleteCustomer.name}-${pendingDeleteCustomer.phone}-${pendingDeleteCustomer.city}`
+                {deleteKey === getCustomerDeleteKey(pendingDeleteCustomer)
                   ? customerCopy.deleting
                   : "Confirm Delete"}
               </button>
