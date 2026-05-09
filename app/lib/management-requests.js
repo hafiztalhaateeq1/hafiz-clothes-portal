@@ -7,7 +7,7 @@ export async function fetchPendingManagementRequests() {
   try {
     const result = await supabase
       .from("profiles")
-      .select("id, full_name, phone, role, status")
+      .select("id, username, phone, role, status")
       .eq("role", EXACT_MANAGEMENT_ROLE)
       .eq("status", EXACT_PENDING_STATUS)
 
@@ -28,7 +28,7 @@ export async function fetchPendingManagementRequests() {
     return {
       data: (result.data ?? []).map((row) => ({
         ...row,
-        full_name: row.full_name ?? "Management User",
+        username: row.username ?? "management_user",
         phone: row.phone ?? null,
         role: String(row.role ?? "").trim().toLowerCase(),
         status: String(row.status ?? "").trim().toLowerCase(),

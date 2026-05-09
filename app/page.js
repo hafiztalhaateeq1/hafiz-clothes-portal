@@ -1055,7 +1055,7 @@ export default function Home() {
                 return (
                   <article key={requestId} className="dashboard-management-row">
                     <div className="dashboard-management-copy">
-                      <strong>{request.full_name ?? "Management User"}</strong>
+                      <strong>{request.username ?? "management_user"}</strong>
                       <span>{request.phone ?? "No phone"}</span>
                       <span>{request.role ?? "management_pending"}</span>
                     </div>
