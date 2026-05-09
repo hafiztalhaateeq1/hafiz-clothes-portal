@@ -42,21 +42,18 @@ export function PortalNavigation({ collapsed = false }) {
     async function loadPendingManagementCount() {
       const authResult = await supabase.auth.getUser();
       if (authResult.error) {
-        console.error("Fetch error:", authResult.error);
+        console.error("SUPABASE_FETCH_ERROR:", authResult.error);
       }
       if (!authResult.data?.user && session?.role === "admin") {
         console.warn(
-          "Pending management badge fetch is running without a Supabase-authenticated user. If RLS blocks SELECT on clients/profiles/users, add an admin SELECT policy or query through a server route with elevated credentials."
+          "Pending management badge fetch is running without a Supabase-authenticated user. If RLS blocks SELECT on clients/profiles/users, add an admin SELECT policy or move this admin fetch to a server route that uses a Supabase service role key."
         );
       }
 
       const result = await fetchPendingManagementRequests();
 
-      if (result.error) {
-        console.error("Fetch error:", result.error);
-        if (isCurrent) {
-          setPendingManagementCount(0);
-        }
+      if (!result.success || result.error) {
+        console.error("SUPABASE_FETCH_ERROR:", result.error);
         return;
       }
 
