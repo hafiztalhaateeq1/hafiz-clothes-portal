@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
 const EXACT_PENDING_STATUS = "pending";
-const EXACT_MANAGEMENT_ROLE = "management";
+const EXACT_MANAGEMENT_ROLE = "management_pending";
 
 export async function fetchPendingManagementRequests() {
   try {

@@ -581,7 +581,7 @@ export default function Home() {
       }
       if (!authResult.data?.user && session?.role === "admin") {
         console.warn(
-          "Pending management request fetch is running without a Supabase-authenticated user. If RLS blocks SELECT on profiles, add an admin SELECT policy or move this admin fetch to a server route that uses a Supabase service role key."
+          "Pending management request fetch is running without a Supabase-authenticated user. Ensure the profiles table has an unrestricted SELECT policy for admins, or move this admin fetch to a server route that uses a Supabase service role key."
         );
       }
 
@@ -634,7 +634,9 @@ export default function Home() {
     setManagementRequestError("");
 
     const updates =
-      nextStatus === "active" ? { status: "active" } : { status: "rejected" };
+      nextStatus === "active"
+        ? { role: "management", status: "active" }
+        : { role: "management_rejected", status: "rejected" };
 
     const result = await supabase
       .from("profiles")
