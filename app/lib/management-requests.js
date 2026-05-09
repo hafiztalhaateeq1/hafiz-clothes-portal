@@ -7,7 +7,7 @@ export async function fetchPendingManagementRequests() {
   try {
     const result = await supabase
       .from("profiles")
-      .select("id, full_name, username, email, phone, role, status, created_at")
+      .select("id, full_name, email, phone, role, status, created_at")
       .eq("role", EXACT_MANAGEMENT_ROLE)
       .eq("status", EXACT_PENDING_STATUS)
       .order("created_at", { ascending: false });
