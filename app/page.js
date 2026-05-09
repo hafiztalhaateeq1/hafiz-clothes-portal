@@ -1056,8 +1056,8 @@ export default function Home() {
                   <article key={requestId} className="dashboard-management-row">
                     <div className="dashboard-management-copy">
                       <strong>{request.full_name ?? "Management User"}</strong>
-                      <span>{request.email ?? "No email"}</span>
                       <span>{request.phone ?? "No phone"}</span>
+                      <span>{request.role ?? "management_pending"}</span>
                     </div>
                     <div className="dashboard-management-actions">
                       <button

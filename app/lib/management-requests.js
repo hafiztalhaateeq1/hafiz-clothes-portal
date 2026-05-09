@@ -7,10 +7,9 @@ export async function fetchPendingManagementRequests() {
   try {
     const result = await supabase
       .from("profiles")
-      .select("id, full_name, email, phone, role, status, created_at")
+      .select("id, full_name, phone, role, status")
       .eq("role", EXACT_MANAGEMENT_ROLE)
       .eq("status", EXACT_PENDING_STATUS)
-      .order("created_at", { ascending: false });
 
     if (result.error) {
       console.error("FETCH_ERROR:", result.error);
@@ -29,7 +28,6 @@ export async function fetchPendingManagementRequests() {
     return {
       data: (result.data ?? []).map((row) => ({
         ...row,
-        name: row.full_name ?? "Management User",
         full_name: row.full_name ?? "Management User",
         phone: row.phone ?? null,
         role: String(row.role ?? "").trim().toLowerCase(),
