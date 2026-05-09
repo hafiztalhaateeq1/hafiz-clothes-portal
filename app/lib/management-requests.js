@@ -13,15 +13,7 @@ export async function fetchPendingManagementRequests() {
       .order("created_at", { ascending: false });
 
     if (result.error) {
-      console.error("SUPABASE_FETCH_ERROR:", {
-        code: result.error.code ?? null,
-        message: result.error.message ?? null,
-        details: result.error.details ?? null,
-        hint: result.error.hint ?? null,
-        table: "profiles",
-        role: EXACT_MANAGEMENT_ROLE,
-        status: EXACT_PENDING_STATUS,
-      });
+      console.error("FETCH_ERROR:", result.error);
 
       return {
         data: [],
@@ -30,6 +22,8 @@ export async function fetchPendingManagementRequests() {
         success: false,
       };
     }
+
+    console.log("Fetched Data:", result.data);
 
     return {
       data: (result.data ?? []).map((row) => ({
@@ -46,16 +40,7 @@ export async function fetchPendingManagementRequests() {
       success: true,
     };
   } catch (error) {
-    console.error("SUPABASE_FETCH_ERROR:", {
-      code: error?.code ?? null,
-      message: error?.message ?? null,
-      details: error?.details ?? null,
-      hint: error?.hint ?? null,
-      table: "profiles",
-      role: EXACT_MANAGEMENT_ROLE,
-      status: EXACT_PENDING_STATUS,
-      caught: true,
-    });
+    console.error("FETCH_ERROR:", error);
 
     return {
       data: [],
