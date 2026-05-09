@@ -581,7 +581,7 @@ export default function Home() {
       }
       if (!authResult.data?.user && session?.role === "admin") {
         console.warn(
-          "Pending management request fetch is running without a Supabase-authenticated user. If RLS blocks SELECT on clients/profiles/users, add an admin SELECT policy or move this admin fetch to a server route that uses a Supabase service role key."
+          "Pending management request fetch is running without a Supabase-authenticated user. If RLS blocks SELECT on profiles, add an admin SELECT policy or move this admin fetch to a server route that uses a Supabase service role key."
         );
       }
 
@@ -611,7 +611,7 @@ export default function Home() {
       .channel("management-requests-dashboard")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "clients" },
+        { event: "*", schema: "public", table: "profiles" },
         () => {
           loadPendingManagementRequests();
         }
@@ -634,21 +634,12 @@ export default function Home() {
     setManagementRequestError("");
 
     const updates =
-      nextStatus === "active"
-        ? { status: "active", is_approved: true }
-        : { status: "rejected", is_approved: false };
+      nextStatus === "active" ? { status: "active" } : { status: "rejected" };
 
-    let result = await supabase
-      .from("clients")
+    const result = await supabase
+      .from("profiles")
       .update(updates)
       .eq("id", normalizedClientId);
-
-    if (result.error && /is_approved/i.test(String(result.error.message ?? ""))) {
-      result = await supabase
-        .from("clients")
-        .update({ status: updates.status })
-        .eq("id", normalizedClientId);
-    }
 
     if (result.error) {
       console.error("Management request action error:", result.error);
@@ -1064,7 +1055,7 @@ export default function Home() {
                 return (
                   <article key={requestId} className="dashboard-management-row">
                     <div className="dashboard-management-copy">
-                      <strong>{request.name ?? "Management User"}</strong>
+                      <strong>{request.full_name ?? request.name ?? "Management User"}</strong>
                       <span>@{request.username ?? "username"}</span>
                       <span>{request.email ?? "No email"}</span>
                       <span>{request.phone ?? "No phone"}</span>

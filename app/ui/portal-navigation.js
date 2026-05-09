@@ -46,7 +46,7 @@ export function PortalNavigation({ collapsed = false }) {
       }
       if (!authResult.data?.user && session?.role === "admin") {
         console.warn(
-          "Pending management badge fetch is running without a Supabase-authenticated user. If RLS blocks SELECT on clients/profiles/users, add an admin SELECT policy or move this admin fetch to a server route that uses a Supabase service role key."
+          "Pending management badge fetch is running without a Supabase-authenticated user. If RLS blocks SELECT on profiles, add an admin SELECT policy or move this admin fetch to a server route that uses a Supabase service role key."
         );
       }
 
@@ -68,7 +68,7 @@ export function PortalNavigation({ collapsed = false }) {
       .channel("management-request-badge")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "clients" },
+        { event: "*", schema: "public", table: "profiles" },
         () => {
           loadPendingManagementCount();
         }
