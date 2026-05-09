@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import crypto from "node:crypto";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
+
+function sha256Hex(value) {
+  return crypto.createHash("sha256").update(String(value ?? ""), "utf8").digest("hex");
+}
 
 function inferCustomerRole(client) {
   const rawType = String(
@@ -32,10 +37,21 @@ function normalizeRequestedRole(value) {
 function normalizeUserRole(value) {
   const normalized = String(value ?? "").toLowerCase().trim();
   if (normalized === "admin") return "admin";
+  if (normalized === "management") return "management";
+  if (normalized === "management_pending") return "management_pending";
   if (normalized === "wholesale") return "wholesale";
   if (normalized === "wholesale_pending") return "wholesale_pending";
   if (normalized === "retail") return "retail";
   return "";
+}
+
+function passwordMatches(client, password) {
+  const passwordHash = String(client?.password_hash ?? "").trim();
+  if (passwordHash) {
+    return passwordHash === sha256Hex(password);
+  }
+
+  return String(client?.password ?? "") === String(password ?? "");
 }
 
 export async function POST(request) {
@@ -86,6 +102,81 @@ export async function POST(request) {
         secure: process.env.NODE_ENV === "production",
         path: "/",
         ...(rememberMe ? { maxAge: 60 * 60 * 24 * 30 } : {}), // 30 days
+      });
+
+      return response;
+    }
+
+    if (requestedRole === "management") {
+      const { data: managementClient, error: managementLookupError } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("username", identifierRaw)
+        .limit(1)
+        .maybeSingle();
+
+      if (managementLookupError) {
+        return NextResponse.json(
+          { error: "Unable to verify this management account right now." },
+          { status: 500 }
+        );
+      }
+
+      if (!managementClient) {
+        return NextResponse.json(
+          { error: "Management account not found. Please sign up first." },
+          { status: 404 }
+        );
+      }
+
+      const managementType = String(
+        managementClient?.user_type ?? managementClient?.role ?? ""
+      ).toLowerCase().trim();
+
+      if (managementType !== "management") {
+        return NextResponse.json(
+          { error: "Access Denied: Please use the correct login option for your account." },
+          { status: 403 }
+        );
+      }
+
+      if (!passwordMatches(managementClient, password)) {
+        return NextResponse.json({ error: "Invalid Password" }, { status: 401 });
+      }
+
+      const managementStatus = String(managementClient?.status ?? "").toLowerCase().trim();
+      const isApproved = managementClient?.is_approved === true || managementStatus === "active";
+
+      if (managementStatus === "pending" || !isApproved) {
+        return NextResponse.json(
+          { error: "Your management account is pending Admin approval." },
+          { status: 403 }
+        );
+      }
+
+      if (managementStatus === "rejected") {
+        return NextResponse.json(
+          { error: "Your management access request was rejected. Please contact Admin." },
+          { status: 403 }
+        );
+      }
+
+      const session = {
+        role: "management",
+        customerId: managementClient?.id ? String(managementClient.id) : null,
+        displayName: managementClient?.name ?? identifierRaw,
+        phone: String(managementClient?.phone ?? "").trim() || null,
+      };
+
+      const response = NextResponse.json({ session });
+      const cookieValue = Buffer.from(JSON.stringify(session)).toString("base64url");
+
+      response.cookies.set("hch_session", cookieValue, {
+        httpOnly: true,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        ...(rememberMe ? { maxAge: 60 * 60 * 24 * 30 } : {}),
       });
 
       return response;

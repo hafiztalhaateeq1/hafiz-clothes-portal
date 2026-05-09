@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 
 function dashboardPathForRole(role?: string | null) {
   const normalized = String(role ?? "").toLowerCase();
-  if (normalized === "admin") return "/dashboard/admin";
+  if (normalized === "admin" || normalized === "management") return "/dashboard/admin";
   if (normalized === "wholesale") return "/dashboard/wholesale";
   return "/dashboard/retail";
 }
@@ -82,4 +82,3 @@ export function middleware(request: Request) {
 export const config = {
   matcher: ["/((?!_next/static|_next/image).*)"],
 };
-

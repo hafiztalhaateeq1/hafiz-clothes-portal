@@ -87,7 +87,7 @@ function validateConfirmPassword(password, confirm) {
 export default function SignupPage() {
   const router = useRouter();
   const [step, setStep] = useState("select"); // select | form
-  const [selectedRole, setSelectedRole] = useState(null); // retail | wholesale
+  const [selectedRole, setSelectedRole] = useState(null); // retail | wholesale | management
   const [form, setForm] = useState({
     fullName: "",
     username: "",
@@ -222,8 +222,11 @@ export default function SignupPage() {
 
     try {
       const payload = {
-        user_type: selectedRole, // retail | wholesale (hidden)
-        status: selectedRole === "wholesale" ? "pending" : "active",
+        user_type: selectedRole, // retail | wholesale | management
+        status:
+          selectedRole === "wholesale" || selectedRole === "management"
+            ? "pending"
+            : "active",
         name: form.fullName.trim(),
         username: form.username.trim(),
         phone: cleanedPhone,
@@ -329,7 +332,9 @@ export default function SignupPage() {
                         ? "Choose account"
                         : selectedRole === "wholesale"
                           ? "Wholesale Partner"
-                          : "Retail Customer"}
+                          : selectedRole === "management"
+                            ? "Management Access"
+                            : "Retail Customer"}
                     </h2>
                   </div>
                 </div>
@@ -393,8 +398,32 @@ export default function SignupPage() {
                     </span>
                   </button>
 
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedRole("management");
+                      setStep("form");
+                      setErrorMessage("");
+                    }}
+                    className="group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 text-left shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md"
+                  >
+                    <span className="flex items-center gap-3">
+                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#800000]/10 text-[#800000]">
+                        <UserRound className="h-5 w-5" />
+                      </span>
+                      <span>
+                        <span className="block text-sm font-bold text-[#241816]">Management Access (Apply)</span>
+                        <span className="block text-xs text-gray-500">Pending admin approval</span>
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
+                      Apply
+                    </span>
+                  </button>
+
                   <p className="rounded-2xl border border-gray-100 bg-white/70 px-4 py-3 text-xs leading-relaxed text-gray-600">
-                    Want to be a Wholesale Partner?{" "}
+                    Wholesale and Management access requests stay pending until an admin approves them.
+                    {" "}
                     <span className="font-semibold text-[#800000]">
                       Apply here
                     </span>{" "}

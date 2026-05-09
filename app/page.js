@@ -145,6 +145,12 @@ function logSupabaseError(scope, error) {
   );
 }
 
+function isManagementRequest(client) {
+  const role = String(client?.user_type ?? client?.role ?? "").toLowerCase().trim();
+  const status = String(client?.status ?? "").toLowerCase().trim();
+  return role === "management" && status === "pending";
+}
+
 export default function Home() {
   const { session } = useAuth();
   const { t, language, hasMounted } = useLanguage();
@@ -156,10 +162,14 @@ export default function Home() {
   const [insight, setInsight] = useState(null);
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [pendingManagementRequests, setPendingManagementRequests] = useState([]);
+  const [isLoadingManagementRequests, setIsLoadingManagementRequests] = useState(false);
+  const [managementActionId, setManagementActionId] = useState("");
+  const [managementRequestError, setManagementRequestError] = useState("");
   const chartHostRef = useRef(null);
   const [chartReady] = useState(true);
 
-  const isAdmin = session?.role === "admin";
+  const isAdmin = session?.role === "admin" || session?.role === "management";
   const isWholesale = session?.role === "wholesale";
   const isRetail = session?.role === "retail";
   const dashboardText = translations.en.dashboard;
@@ -557,6 +567,97 @@ export default function Home() {
     };
   }, [isAdmin, session?.customerId, chartRange]);
 
+  useEffect(() => {
+    if (!isAdmin) {
+      return undefined;
+    }
+
+    let isCurrent = true;
+
+    async function loadPendingManagementRequests() {
+      setIsLoadingManagementRequests(true);
+      setManagementRequestError("");
+
+      const result = await supabase
+        .from("clients")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (result.error) {
+        console.error("Pending management requests fetch error:", result.error);
+        if (isCurrent) {
+          setPendingManagementRequests([]);
+          setManagementRequestError("Unable to load management requests right now.");
+          setIsLoadingManagementRequests(false);
+        }
+        return;
+      }
+
+      if (isCurrent) {
+        setPendingManagementRequests((result.data ?? []).filter(isManagementRequest));
+        setIsLoadingManagementRequests(false);
+      }
+    }
+
+    loadPendingManagementRequests();
+
+    const channel = supabase
+      .channel("management-requests-dashboard")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "clients" },
+        () => {
+          loadPendingManagementRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isCurrent = false;
+      supabase.removeChannel(channel);
+    };
+  }, [isAdmin]);
+
+  async function handleManagementRequestAction(clientId, nextStatus) {
+    const normalizedClientId = String(clientId ?? "").trim();
+    if (!normalizedClientId) {
+      return;
+    }
+
+    setManagementActionId(normalizedClientId);
+    setManagementRequestError("");
+
+    const updates =
+      nextStatus === "active"
+        ? { status: "active", is_approved: true }
+        : { status: "rejected", is_approved: false };
+
+    let result = await supabase
+      .from("clients")
+      .update(updates)
+      .eq("id", normalizedClientId);
+
+    if (result.error && /is_approved/i.test(String(result.error.message ?? ""))) {
+      result = await supabase
+        .from("clients")
+        .update({ status: updates.status })
+        .eq("id", normalizedClientId);
+    }
+
+    if (result.error) {
+      console.error("Management request action error:", result.error);
+      setManagementRequestError("Unable to update this management request right now.");
+      setManagementActionId("");
+      return;
+    }
+
+    setPendingManagementRequests((currentRequests) =>
+      currentRequests.filter((request) => String(request.id ?? "") !== normalizedClientId)
+    );
+    setManagementActionId("");
+  }
+
   const dashboardCards = useMemo(() => {
     if (isAdmin) {
       const billed = toNumber(metrics.totalBilled);
@@ -925,6 +1026,72 @@ export default function Home() {
                 : "Retail sales are steady this week"}
           </span>
         </div>
+      ) : null}
+
+      {isAdmin ? (
+        <section className="dashboard-activity-card dashboard-management-card">
+          <div className="dashboard-activity-head">
+            <div>
+              <p className="dashboard-eyebrow">Management Requests</p>
+              <h3>Pending Approvals</h3>
+            </div>
+            <span className="dashboard-activity-pill dashboard-activity-pill-alert">
+              {pendingManagementRequests.length} Pending
+            </span>
+          </div>
+
+          {managementRequestError ? (
+            <p className="dashboard-management-feedback">{managementRequestError}</p>
+          ) : null}
+
+          <div className="dashboard-management-list">
+            {isLoadingManagementRequests ? (
+              Array.from({ length: 3 }).map((_, index) => (
+                <div key={`management-request-loading-${index}`} className="dashboard-management-row">
+                  <div className="dashboard-management-loading" />
+                </div>
+              ))
+            ) : pendingManagementRequests.length > 0 ? (
+              pendingManagementRequests.map((request) => {
+                const requestId = String(request.id ?? "");
+                const isActing = managementActionId === requestId;
+
+                return (
+                  <article key={requestId} className="dashboard-management-row">
+                    <div className="dashboard-management-copy">
+                      <strong>{request.name ?? "Management User"}</strong>
+                      <span>@{request.username ?? "username"}</span>
+                      <span>{request.email ?? "No email"}</span>
+                      <span>{request.phone ?? "No phone"}</span>
+                    </div>
+                    <div className="dashboard-management-actions">
+                      <button
+                        type="button"
+                        className="dashboard-management-approve"
+                        onClick={() => handleManagementRequestAction(requestId, "active")}
+                        disabled={isActing}
+                      >
+                        {isActing ? "Updating..." : "Approve"}
+                      </button>
+                      <button
+                        type="button"
+                        className="dashboard-management-reject"
+                        onClick={() => handleManagementRequestAction(requestId, "rejected")}
+                        disabled={isActing}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </article>
+                );
+              })
+            ) : (
+              <div className="dashboard-management-empty">
+                No pending management requests right now.
+              </div>
+            )}
+          </div>
+        </section>
       ) : null}
 
       <section className="dashboard-activity-card">

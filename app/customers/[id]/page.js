@@ -60,7 +60,7 @@ export default function CustomerKhataPage({ params }) {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [downloading, setDownloading] = useState(false);
 
-  const isAdmin = session?.role === "admin";
+  const isAdmin = session?.role === "admin" || session?.role === "management";
   const clientId = String(id ?? "");
 
   const ui = useMemo(() => {

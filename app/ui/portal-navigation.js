@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/app/ui/auth-provider";
 import { useLanguage } from "@/app/ui/language-provider";
+import { supabase } from "@/lib/supabase";
 
 const navigationItems = [
   { key: "dashboard", href: "/", icon: LayoutDashboard },
@@ -26,6 +28,59 @@ export function PortalNavigation({ collapsed = false }) {
   const pathname = usePathname();
   const { session } = useAuth();
   const { t } = useLanguage();
+  const [pendingManagementCount, setPendingManagementCount] = useState(0);
+  const canManagePortal = session?.role === "admin" || session?.role === "management";
+
+  useEffect(() => {
+    if (!canManagePortal) {
+      return undefined;
+    }
+
+    let isCurrent = true;
+
+    async function loadPendingManagementCount() {
+      const result = await supabase
+        .from("clients")
+        .select("*")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false });
+
+      if (result.error) {
+        console.error("Pending management badge fetch error:", result.error);
+        if (isCurrent) {
+          setPendingManagementCount(0);
+        }
+        return;
+      }
+
+      const pendingCount = (result.data ?? []).filter((client) => {
+        const role = String(client?.user_type ?? client?.role ?? "").toLowerCase().trim();
+        return role === "management";
+      }).length;
+
+      if (isCurrent) {
+        setPendingManagementCount(pendingCount);
+      }
+    }
+
+    loadPendingManagementCount();
+
+    const channel = supabase
+      .channel("management-request-badge")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "clients" },
+        () => {
+          loadPendingManagementCount();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isCurrent = false;
+      supabase.removeChannel(channel);
+    };
+  }, [canManagePortal]);
 
   function getLabel(itemKey) {
     return t.nav[itemKey] ?? itemKey;
@@ -35,7 +90,7 @@ export function PortalNavigation({ collapsed = false }) {
     <nav className="portal-nav" aria-label="Primary">
       {navigationItems
         .filter((item) => {
-          if (session?.role === "admin") {
+          if (canManagePortal) {
             return true;
           }
 
@@ -64,7 +119,20 @@ export function PortalNavigation({ collapsed = false }) {
             {!collapsed ? (
               <>
                 <span>{getLabel(item.key)}</span>
+                {item.key === "customers" && pendingManagementCount > 0 ? (
+                  <span
+                    className="portal-nav-badge"
+                    aria-label={`${pendingManagementCount} pending management requests`}
+                  >
+                    {pendingManagementCount}
+                  </span>
+                ) : null}
               </>
+            ) : item.key === "customers" && pendingManagementCount > 0 ? (
+              <span
+                className="portal-nav-dot"
+                aria-label={`${pendingManagementCount} pending management requests`}
+              />
             ) : null}
           </Link>
         );

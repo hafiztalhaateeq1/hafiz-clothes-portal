@@ -113,7 +113,7 @@ export default function ExpensesPage() {
     amount: "",
   });
 
-  const isAdmin = session?.role === "admin";
+  const isAdmin = session?.role === "admin" || session?.role === "management";
   const canEdit = mounted && isAdmin;
 
   const ui = useMemo(() => {

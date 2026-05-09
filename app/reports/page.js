@@ -124,7 +124,7 @@ export default function ReportsPage() {
   const [lowStock, setLowStock] = useState([]);
   const [downloading, setDownloading] = useState("");
 
-  const isAdmin = session?.role === "admin";
+  const isAdmin = session?.role === "admin" || session?.role === "management";
 
   const ui = useMemo(() => {
     const en = {

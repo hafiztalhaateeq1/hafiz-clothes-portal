@@ -17,7 +17,7 @@ import { useLanguage } from "@/app/ui/language-provider";
 
 function dashboardPathForRole(role) {
   const normalized = String(role ?? "").toLowerCase();
-  if (normalized === "admin") return "/dashboard/admin";
+  if (normalized === "admin" || normalized === "management") return "/dashboard/admin";
   if (normalized === "wholesale") return "/dashboard/wholesale";
   return "/dashboard/retail";
 }

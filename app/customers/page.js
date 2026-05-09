@@ -150,6 +150,7 @@ export default function CustomersPage() {
   const router = useRouter();
   const { session } = useAuth();
   const { language } = useLanguage();
+  const canManageCustomers = session?.role === "admin" || session?.role === "management";
   const [mounted, setMounted] = useState(false);
   const [directoryClients, setDirectoryClients] = useState([]);
   const [allHisabEntries, setAllHisabEntries] = useState([]);
@@ -385,7 +386,7 @@ export default function CustomersPage() {
   }, [filteredCustomers, sortByBalance]);
 
   const loadCustomers = useCallback(async ({ showLoading = true } = {}) => {
-    if (session?.role !== "admin") {
+    if (!canManageCustomers) {
       setDirectoryClients([]);
       setAllHisabEntries([]);
       setIsLoading(false);
@@ -412,7 +413,7 @@ export default function CustomersPage() {
     setDirectoryClients(clientsResult.data ?? []);
     setAllHisabEntries(ledgerResult.error ? [] : ledgerResult.data ?? []);
     setIsLoading(false);
-  }, [session?.role]);
+  }, [canManageCustomers]);
 
   useEffect(() => {
     customers.forEach((client) => {
@@ -429,7 +430,7 @@ export default function CustomersPage() {
   }, [allHisabEntries, customers]);
 
   useEffect(() => {
-    if (session?.role && session.role !== "admin") {
+    if (session?.role && !canManageCustomers) {
       router.replace("/");
       return;
     }
@@ -437,7 +438,7 @@ export default function CustomersPage() {
     let isMounted = true;
 
     async function bootstrapCustomers() {
-      if (session?.role !== "admin") {
+      if (!canManageCustomers) {
         if (isMounted) {
           setDirectoryClients([]);
           setAllHisabEntries([]);
@@ -454,10 +455,10 @@ export default function CustomersPage() {
     return () => {
       isMounted = false;
     };
-  }, [loadCustomers, router, session?.role]);
+  }, [canManageCustomers, loadCustomers, router, session?.role]);
 
   useEffect(() => {
-    if (session?.role !== "admin") {
+    if (!canManageCustomers) {
       return undefined;
     }
 
@@ -482,7 +483,7 @@ export default function CustomersPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [loadCustomers, session?.role]);
+  }, [canManageCustomers, loadCustomers, session?.role]);
 
   function openModal(customer = null) {
     // Defensive: `onClick={openModal}` would pass the click event as the first argument.

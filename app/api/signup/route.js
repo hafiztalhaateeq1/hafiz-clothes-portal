@@ -48,6 +48,7 @@ async function insertClientWithFallback(clientPayload) {
         username,
         email,
         status,
+        is_approved,
         business_name,
         user_type,
         ...rest
@@ -76,7 +77,8 @@ export async function POST(request) {
     const phone = String(body.phone ?? "").replace(/[^\d]/g, "");
     const password = String(body.password ?? "");
     const userType = String(body.user_type ?? "retail").toLowerCase();
-    const status = String(body.status ?? (userType === "wholesale" ? "pending" : "active"));
+    const isApprovalRole = userType === "wholesale" || userType === "management";
+    const status = String(body.status ?? (isApprovalRole ? "pending" : "active"));
     const businessName = String(body.business_name ?? body.businessName ?? "").trim();
 
     console.log("API SIGNUP payload (normalized):", {
@@ -129,7 +131,12 @@ export async function POST(request) {
     fullName: name,
     phoneNumber: phone,
     password,
-    role: userType === "wholesale" && status !== "active" ? "wholesale_pending" : userType,
+    role:
+      userType === "wholesale" && status !== "active"
+        ? "wholesale_pending"
+        : userType === "management" && status !== "active"
+          ? "management_pending"
+          : userType,
   });
 
     console.log("API SIGNUP auth:", {
@@ -150,12 +157,18 @@ export async function POST(request) {
     const clientPayload = {
       name,
       phone,
-      trust_level: userType === "wholesale" ? "Regular" : "Retail",
+      trust_level:
+        userType === "wholesale"
+          ? "Regular"
+          : userType === "management"
+            ? "Management"
+            : "Retail",
       // Optional fields (may not exist in your schema, insert will fallback safely).
       username,
       email,
       user_type: userType,
       status,
+      is_approved: userType === "management" ? false : status === "active",
       business_name: userType === "wholesale" ? businessName : null,
       // Prefer secure storage.
       password_hash: sha256Hex(password),

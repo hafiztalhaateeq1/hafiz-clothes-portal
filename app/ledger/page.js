@@ -528,7 +528,7 @@ export default function LedgerPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState("");
   const [requestedClient, setRequestedClient] = useState("");
-  const isAdmin = session?.role === "admin";
+  const isAdmin = session?.role === "admin" || session?.role === "management";
   const showAdminColumns = mounted && isAdmin;
   const activeLanguage = mounted ? language : "en";
   const activeTranslations = translations[activeLanguage] ?? translations.en;

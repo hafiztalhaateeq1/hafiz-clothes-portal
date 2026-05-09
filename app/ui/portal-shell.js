@@ -57,7 +57,7 @@ export function PortalShell({ children }) {
 
     if (isAuthenticated && publicRoutes.has(pathname)) {
       const nextPath =
-        session?.role === "admin"
+        session?.role === "admin" || session?.role === "management"
           ? "/dashboard/admin"
           : session?.role === "wholesale"
             ? "/dashboard/wholesale"
@@ -72,6 +72,9 @@ export function PortalShell({ children }) {
     const role = String(session?.role ?? "").toLowerCase().trim();
     if (role === "admin") {
       return { label: t.shell?.administrator ?? "Administrator", badgeClass: "is-admin" };
+    }
+    if (role === "management") {
+      return { label: "Management", badgeClass: "is-admin" };
     }
     if (role === "wholesale") {
       return { label: "Wholesale Partner", badgeClass: "is-wholesale" };
