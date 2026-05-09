@@ -33,6 +33,10 @@ export function PortalNavigation({ collapsed = false }) {
   const canManagePortal = session?.role === "admin" || session?.role === "management";
 
   useEffect(() => {
+    if (!session?.role) {
+      return undefined;
+    }
+
     if (!canManagePortal) {
       return undefined;
     }
@@ -40,20 +44,14 @@ export function PortalNavigation({ collapsed = false }) {
     let isCurrent = true;
 
     async function loadPendingManagementCount() {
-      const authResult = await supabase.auth.getUser();
-      if (authResult.error) {
-        console.error("SUPABASE_FETCH_ERROR:", authResult.error);
-      }
-      if (!authResult.data?.user && session?.role === "admin") {
-        console.warn(
-          "Pending management badge fetch is running without a Supabase-authenticated user. Ensure the profiles table has an unrestricted SELECT policy for admins, or move this admin fetch to a server route that uses a Supabase service role key."
-        );
-      }
-
       const result = await fetchPendingManagementRequests();
 
       if (!result.success || result.error) {
-        console.error("SUPABASE_FETCH_ERROR:", result.error);
+        console.error(
+          "SUPABASE_FETCH_ERROR:",
+          result.error?.message ?? result.error,
+          result.error
+        );
         return;
       }
 

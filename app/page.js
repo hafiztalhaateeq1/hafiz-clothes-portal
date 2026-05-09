@@ -564,6 +564,10 @@ export default function Home() {
   }, [isAdmin, session?.customerId, chartRange]);
 
   useEffect(() => {
+    if (!session?.role) {
+      return undefined;
+    }
+
     if (!isAdmin) {
       return undefined;
     }
@@ -575,20 +579,14 @@ export default function Home() {
       setManagementRequestError("");
       setHasLoadedManagementRequests(false);
 
-      const authResult = await supabase.auth.getUser();
-      if (authResult.error) {
-        console.error("SUPABASE_FETCH_ERROR:", authResult.error);
-      }
-      if (!authResult.data?.user && session?.role === "admin") {
-        console.warn(
-          "Pending management request fetch is running without a Supabase-authenticated user. Ensure the profiles table has an unrestricted SELECT policy for admins, or move this admin fetch to a server route that uses a Supabase service role key."
-        );
-      }
-
       const result = await fetchPendingManagementRequests();
 
       if (!result.success || result.error) {
-        console.error("SUPABASE_FETCH_ERROR:", result.error);
+        console.error(
+          "SUPABASE_FETCH_ERROR:",
+          result.error?.message ?? result.error,
+          result.error
+        );
         if (isCurrent) {
           setPendingManagementRequests([]);
           setManagementRequestError("Unable to load management requests right now.");

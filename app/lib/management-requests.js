@@ -14,6 +14,7 @@ export async function fetchPendingManagementRequests() {
 
     if (result.error) {
       console.error("FETCH_ERROR:", result.error);
+      console.error("SUPABASE_FETCH_ERROR:", result.error?.message ?? result.error, result.error);
 
       return {
         data: [],
@@ -41,6 +42,7 @@ export async function fetchPendingManagementRequests() {
     };
   } catch (error) {
     console.error("FETCH_ERROR:", error);
+    console.error("SUPABASE_FETCH_ERROR:", error?.message ?? error, error);
 
     return {
       data: [],
