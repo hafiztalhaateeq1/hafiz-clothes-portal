@@ -14,6 +14,7 @@ import {
 import { useAuth } from "@/app/ui/auth-provider";
 import { useLanguage } from "@/app/ui/language-provider";
 import { supabase } from "@/lib/supabase";
+import { fetchPendingManagementRequests } from "@/app/lib/management-requests";
 
 const navigationItems = [
   { key: "dashboard", href: "/", icon: LayoutDashboard },
@@ -39,27 +40,28 @@ export function PortalNavigation({ collapsed = false }) {
     let isCurrent = true;
 
     async function loadPendingManagementCount() {
-      const result = await supabase
-        .from("clients")
-        .select("*")
-        .eq("status", "pending")
-        .order("created_at", { ascending: false });
+      const authResult = await supabase.auth.getUser();
+      if (authResult.error) {
+        console.error("Fetch error:", authResult.error);
+      }
+      if (!authResult.data?.user && session?.role === "admin") {
+        console.warn(
+          "Pending management badge fetch is running without a Supabase-authenticated user. If RLS blocks SELECT on clients/profiles/users, add an admin SELECT policy or query through a server route with elevated credentials."
+        );
+      }
+
+      const result = await fetchPendingManagementRequests();
 
       if (result.error) {
-        console.error("Pending management badge fetch error:", result.error);
+        console.error("Fetch error:", result.error);
         if (isCurrent) {
           setPendingManagementCount(0);
         }
         return;
       }
 
-      const pendingCount = (result.data ?? []).filter((client) => {
-        const role = String(client?.user_type ?? client?.role ?? "").toLowerCase().trim();
-        return role === "management";
-      }).length;
-
       if (isCurrent) {
-        setPendingManagementCount(pendingCount);
+        setPendingManagementCount((result.data ?? []).length);
       }
     }
 
@@ -80,7 +82,7 @@ export function PortalNavigation({ collapsed = false }) {
       isCurrent = false;
       supabase.removeChannel(channel);
     };
-  }, [canManagePortal]);
+  }, [canManagePortal, session?.role]);
 
   function getLabel(itemKey) {
     return t.nav[itemKey] ?? itemKey;
