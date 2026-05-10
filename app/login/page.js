@@ -104,6 +104,11 @@ export default function LoginPage() {
 
       console.log("Sign-in session:", session);
 
+      if (selectedRole === "management") {
+        router.push("/dashboard/admin");
+        return;
+      }
+
       router.replace(dashboardPathForRole(session?.role));
     } catch (error) {
       setErrorMessage(error.message);

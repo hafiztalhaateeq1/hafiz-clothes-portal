@@ -3,9 +3,11 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
+import { supabase } from "@/lib/supabase";
 
 const STORAGE_KEY = "hafiz-auth-session";
 const SESSION_STORAGE_KEY = "hafiz-auth-session-temporary";
@@ -85,7 +87,27 @@ export function AuthProvider({ children }) {
     return result.session;
   }
 
-  function logout() {
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "SIGNED_OUT" || !nextSession) {
+        setSession(null);
+
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(STORAGE_KEY);
+          window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+          window.location.href = "/login";
+        }
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  async function logout() {
     setSession(null);
 
     if (typeof window !== "undefined") {
@@ -93,8 +115,18 @@ export function AuthProvider({ children }) {
       window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
     }
 
+    try {
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.error("Supabase signOut error:", error);
+    }
+
     // Best-effort: clear server-side auth cookie so middleware can stop treating the user as signed in.
     fetch("/api/logout", { method: "POST" }).catch(() => {});
+
+    if (typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
   }
 
   const value = useMemo(

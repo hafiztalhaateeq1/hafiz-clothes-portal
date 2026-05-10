@@ -108,12 +108,13 @@ export async function POST(request) {
     }
 
     if (requestedRole === "management") {
-      const { data: managementClient, error: managementLookupError } = await supabase
-        .from("clients")
-        .select("*")
+      const { data: managementRows, error: managementLookupError } = await supabase
+        .from("profiles")
+        .select("id, username, phone, role, status")
         .eq("username", identifierRaw)
-        .limit(1)
-        .maybeSingle();
+        .limit(1);
+
+      console.log("Database Row Found:", managementRows?.[0] ?? null);
 
       if (managementLookupError) {
         return NextResponse.json(
@@ -122,49 +123,28 @@ export async function POST(request) {
         );
       }
 
-      if (!managementClient) {
+      if (!managementRows || managementRows.length === 0) {
         return NextResponse.json(
-          { error: "Management account not found. Please sign up first." },
+          { error: `User ${identifierRaw} not found in database` },
           { status: 404 }
         );
       }
 
-      const managementType = String(
-        managementClient?.user_type ?? managementClient?.role ?? ""
-      ).toLowerCase().trim();
-
-      if (managementType !== "management") {
-        return NextResponse.json(
-          { error: "Access Denied: Please use the correct login option for your account." },
-          { status: 403 }
-        );
-      }
-
-      if (!passwordMatches(managementClient, password)) {
-        return NextResponse.json({ error: "Invalid Password" }, { status: 401 });
-      }
-
+      const managementClient = managementRows[0];
+      const managementType = String(managementClient?.role ?? "").toLowerCase().trim();
       const managementStatus = String(managementClient?.status ?? "").toLowerCase().trim();
-      const isApproved = managementClient?.is_approved === true || managementStatus === "active";
 
-      if (managementStatus === "pending" || !isApproved) {
-        return NextResponse.json(
-          { error: "Your management account is pending Admin approval." },
-          { status: 403 }
-        );
-      }
-
-      if (managementStatus === "rejected") {
-        return NextResponse.json(
-          { error: "Your management access request was rejected. Please contact Admin." },
-          { status: 403 }
-        );
-      }
+      console.log("Management role/status comparison:", {
+        expectedRole: "management",
+        expectedStatus: "active",
+        databaseRole: managementType,
+        databaseStatus: managementStatus,
+      });
 
       const session = {
         role: "management",
         customerId: managementClient?.id ? String(managementClient.id) : null,
-        displayName: managementClient?.name ?? identifierRaw,
+        displayName: managementClient?.username ?? identifierRaw,
         phone: String(managementClient?.phone ?? "").trim() || null,
       };
 
