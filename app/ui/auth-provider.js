@@ -1,10 +1,12 @@
 "use client";
 
 import {
+  useCallback,
   createContext,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { supabase } from "@/lib/supabase";
@@ -53,6 +55,11 @@ export function AuthProvider({ children }) {
     }
   });
   const [authResolved, setAuthResolved] = useState(false);
+  const sessionRef = useRef(session);
+
+  useEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
 
   async function login(credentials) {
     const rememberMe = Boolean(credentials?.rememberMe);
@@ -160,7 +167,11 @@ export function AuthProvider({ children }) {
             });
           });
 
-          if (!session && typeof window !== "undefined" && window.location.pathname !== "/pending") {
+          if (
+            !sessionRef.current &&
+            typeof window !== "undefined" &&
+            window.location.pathname !== "/pending"
+          ) {
             redirectIfNeeded("/pending");
           }
         } else {
@@ -226,7 +237,7 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  async function logout() {
+  const logout = useCallback(async () => {
     setSession(null);
 
     if (typeof window !== "undefined") {
@@ -244,7 +255,7 @@ export function AuthProvider({ children }) {
     fetch("/api/logout", { method: "POST" }).catch(() => {});
 
     redirectIfNeeded("/login");
-  }
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -255,7 +266,7 @@ export function AuthProvider({ children }) {
       logout,
       session,
     }),
-    [authResolved, session]
+    [authResolved, logout, session]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
