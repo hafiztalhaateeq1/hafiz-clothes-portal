@@ -105,7 +105,12 @@ export default function LoginPage() {
       console.log("Sign-in session:", session);
 
       if (selectedRole === "management") {
-        router.push("/dashboard/admin");
+        try {
+          router.replace("/dashboard/admin");
+        } catch (error) {
+          console.error("Management redirect error:", error);
+          window.location.href = "/dashboard/admin";
+        }
         return;
       }
 

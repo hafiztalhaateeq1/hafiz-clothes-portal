@@ -14,6 +14,20 @@ const SESSION_STORAGE_KEY = "hafiz-auth-session-temporary";
 
 const AuthContext = createContext(null);
 
+function normalizeSession(sessionLike) {
+  if (!sessionLike) {
+    return null;
+  }
+
+  const normalizedRole = String(sessionLike.role ?? "").toLowerCase().trim();
+
+  return {
+    ...sessionLike,
+    displayName: String(sessionLike.displayName ?? "").trim() || "User",
+    role: normalizedRole || "retail",
+  };
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => {
     if (typeof window === "undefined") {
@@ -29,13 +43,14 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      return JSON.parse(savedSession);
+      return normalizeSession(JSON.parse(savedSession));
     } catch {
       window.localStorage.removeItem(STORAGE_KEY);
       window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
       return null;
     }
   });
+  const [authResolved] = useState(true);
 
   async function login(credentials) {
     const rememberMe = Boolean(credentials?.rememberMe);
@@ -66,25 +81,26 @@ export function AuthProvider({ children }) {
       throw new Error(result.error ?? "Unable to sign in.");
     }
 
-    setSession(result.session);
+    const normalizedSession = normalizeSession(result.session);
+    setSession(normalizedSession);
 
     if (typeof window !== "undefined") {
       // Persist session based on user preference:
       // - Remember Me: survive browser restarts (localStorage)
       // - Otherwise: survive refreshes but clear on browser close (sessionStorage)
       if (rememberMe) {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(result.session));
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedSession));
         window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
       } else {
         window.sessionStorage.setItem(
           SESSION_STORAGE_KEY,
-          JSON.stringify(result.session)
+          JSON.stringify(normalizedSession)
         );
         window.localStorage.removeItem(STORAGE_KEY);
       }
     }
 
-    return result.session;
+    return normalizedSession;
   }
 
   useEffect(() => {
@@ -98,6 +114,24 @@ export function AuthProvider({ children }) {
           window.localStorage.removeItem(STORAGE_KEY);
           window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
           window.location.href = "/login";
+        }
+        return;
+      }
+
+      if (nextSession && typeof window !== "undefined") {
+        const savedSession =
+          window.localStorage.getItem(STORAGE_KEY) ??
+          window.sessionStorage.getItem(SESSION_STORAGE_KEY);
+
+        if (savedSession) {
+          try {
+            const parsedSession = normalizeSession(JSON.parse(savedSession));
+            setSession(parsedSession);
+          } catch {
+            setSession((currentSession) => normalizeSession(currentSession));
+          }
+        } else {
+          setSession((currentSession) => normalizeSession(currentSession));
         }
       }
     });
@@ -131,13 +165,14 @@ export function AuthProvider({ children }) {
 
   const value = useMemo(
     () => ({
+      authResolved,
       hasMounted: true,
       isAuthenticated: Boolean(session),
       login,
       logout,
       session,
     }),
-    [session]
+    [authResolved, session]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

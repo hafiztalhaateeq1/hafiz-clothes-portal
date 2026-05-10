@@ -25,7 +25,7 @@ const SHOP_INFO = {
 export function PortalShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isAuthenticated, logout, session } = useAuth();
+  const { authResolved, isAuthenticated, logout, session } = useAuth();
   const { language, setLanguage, t, languages } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -44,7 +44,7 @@ export function PortalShell({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!mounted) {
+    if (!mounted || !authResolved) {
       return;
     }
 
@@ -64,7 +64,7 @@ export function PortalShell({ children }) {
             : "/dashboard/retail";
       router.replace(nextPath);
     }
-  }, [isAuthenticated, mounted, pathname, router, session?.role]);
+  }, [authResolved, isAuthenticated, mounted, pathname, router, session?.role]);
 
   const languageClass = mounted ? `language-${language}` : "language-en";
 
@@ -105,6 +105,18 @@ export function PortalShell({ children }) {
 
   if (pathname === "/login" || pathname === "/signup" || pathname === "/register") {
     return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
+  }
+
+  if (!authResolved) {
+    return (
+      <div className={`portal-shell-root ${languageClass}`}>
+        <div className="min-h-screen flex items-center justify-center bg-[#FDF8F3]">
+          <div className="rounded-2xl border border-[#800000]/10 bg-white/80 px-6 py-5 text-sm font-semibold text-[#800000] shadow-lg">
+            Loading...
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (!isAuthenticated) {
