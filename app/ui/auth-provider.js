@@ -36,6 +36,15 @@ function isPublicPath(pathname) {
   return PUBLIC_PATHS.has(pathname);
 }
 
+function clearBrowserStorage() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => {
     if (typeof window === "undefined") {
@@ -64,6 +73,112 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
+
+  const invalidateStaleSession = useCallback(async (reason, error = null) => {
+    console.error("Invalidating stale session:", reason, error);
+    setSession(null);
+    setAuthResolved(true);
+
+    clearBrowserStorage();
+
+    try {
+      await supabase.auth.signOut();
+    } catch (signOutError) {
+      console.error("Supabase signOut error:", signOutError);
+    }
+
+    fetch("/api/logout", { method: "POST" }).catch(() => {});
+
+    if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
+      redirectIfNeeded("/login");
+    }
+  }, []);
+
+  const hydrateFreshSession = useCallback(async (cachedSession) => {
+    const normalizedCachedSession = normalizeSession(cachedSession);
+
+    if (!normalizedCachedSession) {
+      return null;
+    }
+
+    const role = String(normalizedCachedSession.role ?? "").toLowerCase().trim();
+    const recordId = String(normalizedCachedSession.customerId ?? "").trim();
+
+    if (role === "admin" || !recordId) {
+      return normalizedCachedSession;
+    }
+
+    try {
+      if (role.startsWith("management")) {
+        const { data, error } = await supabase
+          .from("profiles")
+          .select("id, username, phone, role, status")
+          .eq("id", recordId)
+          .maybeSingle();
+
+        if (error) {
+          await invalidateStaleSession("profiles fetch failed", error);
+          return null;
+        }
+
+        if (!data) {
+          await invalidateStaleSession("profile missing after session check");
+          return null;
+        }
+
+        return normalizeSession({
+          ...normalizedCachedSession,
+          customerId: String(data.id ?? recordId),
+          displayName: String(data.username ?? "").trim() || "User",
+          phone: String(data.phone ?? "").trim() || null,
+          role: String(data.role ?? "").trim().toLowerCase() || normalizedCachedSession.role,
+          status: String(data.status ?? "").trim().toLowerCase() || null,
+        });
+      }
+
+      const { data, error } = await supabase
+        .from("clients")
+        .select("id, name, phone, status, user_type, trust_level, account_type, customer_type")
+        .eq("id", recordId)
+        .maybeSingle();
+
+      if (error) {
+        await invalidateStaleSession("clients fetch failed", error);
+        return null;
+      }
+
+      if (!data) {
+        await invalidateStaleSession("client missing after session check");
+        return null;
+      }
+
+      const rawUserType = String(
+        data.user_type ?? data.trust_level ?? data.account_type ?? data.customer_type ?? ""
+      )
+        .toLowerCase()
+        .trim();
+      const normalizedStatus = String(data.status ?? "").toLowerCase().trim();
+      const isWholesale =
+        rawUserType.includes("whole") || rawUserType.includes("regular");
+      const nextRole = isWholesale
+        ? normalizedStatus === "pending"
+          ? "wholesale_pending"
+          : "wholesale"
+        : "retail";
+
+      return normalizeSession({
+        ...normalizedCachedSession,
+        customerId: String(data.id ?? recordId),
+        displayName: String(data.name ?? "").trim() || "User",
+        phone: String(data.phone ?? "").trim() || null,
+        role: nextRole,
+        status: normalizedStatus || null,
+      });
+    } catch (error) {
+      await invalidateStaleSession("fresh profile hydration failed", error);
+      return null;
+    }
+  }, [invalidateStaleSession]);
 
   async function login(credentials) {
     const rememberMe = Boolean(credentials?.rememberMe);
@@ -137,14 +252,7 @@ export function AuthProvider({ children }) {
       }
 
       console.warn("Auth bootstrap timed out. Falling back to resolved state.");
-      setSession((currentSession) =>
-        currentSession ? normalizeSession(currentSession) : null
-      );
-      setAuthResolved(true);
-
-      if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
-        redirectIfNeeded("/login");
-      }
+      invalidateStaleSession("auth bootstrap timed out");
     }, AUTH_TIMEOUT_MS);
 
     async function bootstrapAuth() {
@@ -153,35 +261,79 @@ export function AuthProvider({ children }) {
 
         if (error) {
           console.error("Auth bootstrap error:", error);
+          await invalidateStaleSession("auth bootstrap returned error", error);
+          return;
         }
 
         if (!isActive) {
           return;
         }
 
+        const savedSession =
+          typeof window !== "undefined"
+            ? window.localStorage.getItem(STORAGE_KEY) ??
+              window.sessionStorage.getItem(SESSION_STORAGE_KEY)
+            : null;
+
+        let cachedSession = null;
+        if (savedSession) {
+          try {
+            cachedSession = JSON.parse(savedSession);
+          } catch (parseError) {
+            await invalidateStaleSession("cached session parse failed", parseError);
+            return;
+          }
+        }
+
         if (data?.session) {
-          setSession((currentSession) => {
-            if (currentSession) {
-              return normalizeSession(currentSession);
+          const refreshedSession = await hydrateFreshSession(
+            cachedSession ?? sessionRef.current ?? {
+              customerId: data.session.user?.id ?? null,
+              displayName:
+                data.session.user?.user_metadata?.username ??
+                data.session.user?.user_metadata?.full_name ??
+                data.session.user?.email ??
+                "User",
+              phone: data.session.user?.phone ?? null,
+              role:
+                data.session.user?.user_metadata?.role ??
+                data.session.user?.app_metadata?.role ??
+                "guest",
             }
+          );
 
-            return normalizeSession({
-              displayName: "User",
-              role: "guest",
-            });
-          });
+          if (!isActive) {
+            return;
+          }
 
-          if (
-            !sessionRef.current &&
-            typeof window !== "undefined" &&
-            !isPublicPath(window.location.pathname)
-          ) {
-            redirectIfNeeded("/pending");
+          if (refreshedSession) {
+            setSession(refreshedSession);
+            if (typeof window !== "undefined") {
+              if (window.localStorage.getItem(STORAGE_KEY)) {
+                window.localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshedSession));
+              } else if (window.sessionStorage.getItem(SESSION_STORAGE_KEY)) {
+                window.sessionStorage.setItem(
+                  SESSION_STORAGE_KEY,
+                  JSON.stringify(refreshedSession)
+                );
+              }
+            }
           }
         } else {
-          setSession((currentSession) =>
-            currentSession ? normalizeSession(currentSession) : null
-          );
+          if (cachedSession) {
+            const refreshedSession = await hydrateFreshSession(cachedSession);
+
+            if (!isActive) {
+              return;
+            }
+
+            if (refreshedSession) {
+              setSession(refreshedSession);
+            }
+            return;
+          }
+
+          setSession(null);
         }
       } finally {
         window.clearTimeout(timeoutId);
@@ -195,45 +347,64 @@ export function AuthProvider({ children }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+    } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
       if (event === "SIGNED_OUT" || !nextSession) {
         setSession(null);
         setAuthResolved(true);
 
-        if (typeof window !== "undefined") {
-          window.localStorage.removeItem(STORAGE_KEY);
-          window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-          if (!isPublicPath(window.location.pathname)) {
-            redirectIfNeeded("/login");
-          }
+        clearBrowserStorage();
+        fetch("/api/logout", { method: "POST" }).catch(() => {});
+        if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
+          redirectIfNeeded("/login");
         }
         return;
       }
 
-      if (nextSession && typeof window !== "undefined") {
+      if (
+        (event === "SIGNED_IN" ||
+          event === "TOKEN_REFRESHED" ||
+          event === "USER_UPDATED" ||
+          event === "INITIAL_SESSION") &&
+        nextSession &&
+        typeof window !== "undefined"
+      ) {
         const savedSession =
           window.localStorage.getItem(STORAGE_KEY) ??
           window.sessionStorage.getItem(SESSION_STORAGE_KEY);
 
+        let parsedSession = null;
         if (savedSession) {
           try {
-            const parsedSession = normalizeSession(JSON.parse(savedSession));
-            setSession(parsedSession);
-          } catch {
-            setSession((currentSession) => normalizeSession(currentSession));
-          }
-        } else {
-          setSession(
-            normalizeSession({
-              displayName: "User",
-              role: "guest",
-            })
-          );
-          if (!isPublicPath(window.location.pathname)) {
-            redirectIfNeeded("/pending");
+            parsedSession = JSON.parse(savedSession);
+          } catch (parseError) {
+            await invalidateStaleSession("auth state cached session parse failed", parseError);
+            return;
           }
         }
 
+        const refreshedSession = await hydrateFreshSession(
+          parsedSession ?? {
+            customerId: nextSession.user?.id ?? null,
+            displayName:
+              nextSession.user?.user_metadata?.username ??
+              nextSession.user?.user_metadata?.full_name ??
+              nextSession.user?.email ??
+              "User",
+            phone: nextSession.user?.phone ?? null,
+            role:
+              nextSession.user?.user_metadata?.role ??
+              nextSession.user?.app_metadata?.role ??
+              "guest",
+          }
+        );
+
+        if (!isActive) {
+          return;
+        }
+
+        if (refreshedSession) {
+          setSession(refreshedSession);
+        }
         setAuthResolved(true);
       }
     });
@@ -243,15 +414,12 @@ export function AuthProvider({ children }) {
       window.clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
-  }, []);
+  }, [hydrateFreshSession, invalidateStaleSession]);
 
   const logout = useCallback(async () => {
     setSession(null);
 
-    if (typeof window !== "undefined") {
-      window.localStorage.removeItem(STORAGE_KEY);
-      window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-    }
+    clearBrowserStorage();
 
     try {
       await supabase.auth.signOut();
