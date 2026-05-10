@@ -22,6 +22,12 @@ const SHOP_INFO = {
   contact: "0323-7869400",
 };
 
+function isPendingUser(sessionLike) {
+  const role = String(sessionLike?.role ?? "").toLowerCase().trim();
+  const status = String(sessionLike?.status ?? "").toLowerCase().trim();
+  return status === "pending" || role.endsWith("_pending");
+}
+
 export function PortalShell({ children }) {
   const pathname = usePathname();
   const { authResolved, isAuthenticated, logout, session } = useAuth();
@@ -41,6 +47,26 @@ export function PortalShell({ children }) {
       window.clearTimeout(timer);
     };
   }, []);
+
+  useEffect(() => {
+    if (!mounted || !authResolved) {
+      return;
+    }
+
+    if (!isAuthenticated || session?.role === "guest") {
+      return;
+    }
+
+    if (!isPendingUser(session)) {
+      return;
+    }
+
+    if (pathname === "/pending-approval") {
+      return;
+    }
+
+    window.location.href = "/pending-approval";
+  }, [authResolved, isAuthenticated, mounted, pathname, session]);
 
   const languageClass = mounted ? `language-${language}` : "language-en";
 
@@ -82,7 +108,14 @@ export function PortalShell({ children }) {
     return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
   }
 
-  if (pathname === "/login" || pathname === "/signup" || pathname === "/register" || pathname === "/pending" || pathname === "/error") {
+  if (
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname === "/register" ||
+    pathname === "/pending" ||
+    pathname === "/pending-approval" ||
+    pathname === "/error"
+  ) {
     return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
   }
 
@@ -104,6 +137,18 @@ export function PortalShell({ children }) {
         <div className="min-h-screen flex items-center justify-center bg-[#FDF8F3]">
           <div className="rounded-2xl border border-[#800000]/10 bg-white/80 px-6 py-5 text-sm font-semibold text-[#800000] shadow-lg">
             Loading...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (isPendingUser(session)) {
+    return (
+      <div className={`portal-shell-root ${languageClass}`}>
+        <div className="min-h-screen flex items-center justify-center bg-[#FDF8F3]">
+          <div className="rounded-2xl border border-[#800000]/10 bg-white/80 px-6 py-5 text-sm font-semibold text-[#800000] shadow-lg">
+            Redirecting...
           </div>
         </div>
       </div>

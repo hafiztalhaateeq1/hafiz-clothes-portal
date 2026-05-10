@@ -45,6 +45,10 @@ function normalizeUserRole(value) {
   return "";
 }
 
+function isPendingStatus(value) {
+  return String(value ?? "").toLowerCase().trim() === "pending";
+}
+
 function passwordMatches(client, password) {
   const passwordHash = String(client?.password_hash ?? "").trim();
   if (passwordHash) {
@@ -142,10 +146,11 @@ export async function POST(request) {
       });
 
       const session = {
-        role: "management",
+        role: managementType || "management",
         customerId: managementClient?.id ? String(managementClient.id) : null,
         displayName: managementClient?.username ?? identifierRaw,
         phone: String(managementClient?.phone ?? "").trim() || null,
+        status: managementStatus || null,
       };
 
       const response = NextResponse.json({ session });
@@ -247,17 +252,15 @@ export async function POST(request) {
           { status: 403 }
         );
       }
-      if (effectiveRole === "wholesale_pending") {
-        return NextResponse.json(
-          { error: "Your wholesale account is pending Admin approval." },
-          { status: 403 }
-        );
-      }
       if (effectiveRole !== "wholesale") {
-        return NextResponse.json(
-          { error: "Access Denied: Please use the correct login option for your account." },
-          { status: 403 }
-        );
+        if (effectiveRole === "wholesale_pending") {
+          // Allow pending wholesale users to sign in and land on the approval screen.
+        } else {
+          return NextResponse.json(
+            { error: "Access Denied: Please use the correct login option for your account." },
+            { status: 403 }
+          );
+        }
       }
     }
 
@@ -292,6 +295,7 @@ export async function POST(request) {
       customerId: client?.id ? String(client.id) : null,
       displayName: client?.name ?? user?.user_metadata?.full_name ?? "Customer",
       phone,
+      status: isPendingStatus(client?.status) ? "pending" : "active",
     };
 
     const response = NextResponse.json({

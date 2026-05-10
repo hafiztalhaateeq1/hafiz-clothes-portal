@@ -14,12 +14,19 @@ import {
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/ui/auth-provider";
 import { useLanguage } from "@/app/ui/language-provider";
+import { supabase } from "@/lib/supabase";
 
 function dashboardPathForRole(role) {
   const normalized = String(role ?? "").toLowerCase();
   if (normalized === "admin" || normalized === "management") return "/dashboard/admin";
   if (normalized === "wholesale") return "/dashboard/wholesale";
   return "/dashboard/retail";
+}
+
+function isPendingUser(sessionLike) {
+  const role = String(sessionLike?.role ?? "").toLowerCase().trim();
+  const status = String(sessionLike?.status ?? "").toLowerCase().trim();
+  return status === "pending" || role.endsWith("_pending");
 }
 
 export default function LoginPage() {
@@ -37,9 +44,54 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (hasMounted && isAuthenticated) {
-      router.replace(dashboardPathForRole(session?.role));
+      router.replace(
+        isPendingUser(session) ? "/pending-approval" : dashboardPathForRole(session?.role)
+      );
     }
-  }, [hasMounted, isAuthenticated, router, session?.role]);
+  }, [hasMounted, isAuthenticated, router, session]);
+
+  async function fetchProfileStatus(nextSession, roleKey, identifierValue) {
+    const identifier = String(identifierValue ?? "").trim();
+    const normalizedRole = String(roleKey ?? "").toLowerCase().trim();
+
+    if (normalizedRole !== "management" && normalizedRole !== "wholesale") {
+      return null;
+    }
+
+    let query = supabase.from("profiles").select("id, username, phone, role, status").limit(1);
+
+    if (normalizedRole === "management") {
+      query = query.eq("username", identifier);
+    } else {
+      const cleanedPhone = identifier.replace(/[^\d]/g, "");
+      query = query.eq("phone", cleanedPhone);
+    }
+
+    const { data, error } = await query.maybeSingle();
+
+    if (error) {
+      console.error("Post-login profiles fetch error:", error);
+      return null;
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    return {
+      ...nextSession,
+      customerId: String(data.id ?? nextSession?.customerId ?? "").trim() || nextSession?.customerId,
+      displayName:
+        String(data.username ?? "").trim() ||
+        String(nextSession?.displayName ?? "").trim() ||
+        "User",
+      phone: String(data.phone ?? "").trim() || nextSession?.phone || null,
+      role: String(data.role ?? nextSession?.role ?? "").trim().toLowerCase() || nextSession?.role,
+      status:
+        String(data.status ?? nextSession?.status ?? "").trim().toLowerCase() ||
+        nextSession?.status,
+    };
+  }
 
   function handleChange(event) {
     const { name, value } = event.target;
@@ -102,19 +154,16 @@ export default function LoginPage() {
         rememberMe,
       });
 
-      console.log("Sign-in session:", session);
+      const profileSession =
+        (await fetchProfileStatus(session, selectedRole, form.identifier)) ?? session;
 
-      if (selectedRole === "management") {
-        try {
-          router.replace("/dashboard/admin");
-        } catch (error) {
-          console.error("Management redirect error:", error);
-          window.location.href = "/dashboard/admin";
-        }
-        return;
-      }
+      console.log("Sign-in session:", profileSession);
 
-      router.replace(dashboardPathForRole(session?.role));
+      const nextPath = isPendingUser(profileSession)
+        ? "/pending-approval"
+        : dashboardPathForRole(profileSession?.role);
+
+      router.replace(nextPath);
     } catch (error) {
       setErrorMessage(error.message);
     } finally {

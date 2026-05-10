@@ -14,7 +14,14 @@ import { supabase } from "@/lib/supabase";
 const STORAGE_KEY = "hafiz-auth-session";
 const SESSION_STORAGE_KEY = "hafiz-auth-session-temporary";
 const AUTH_TIMEOUT_MS = 5000;
-const PUBLIC_PATHS = new Set(["/login", "/signup", "/register", "/pending", "/error"]);
+const PUBLIC_PATHS = new Set([
+  "/login",
+  "/signup",
+  "/register",
+  "/pending",
+  "/pending-approval",
+  "/error",
+]);
 
 const AuthContext = createContext(null);
 
@@ -29,6 +36,7 @@ function normalizeSession(sessionLike) {
     ...sessionLike,
     displayName: String(sessionLike.displayName ?? "").trim() || "User",
     role: normalizedRole || "retail",
+    status: String(sessionLike.status ?? "").toLowerCase().trim() || null,
   };
 }
 

@@ -7,15 +7,20 @@ function dashboardPathForRole(role?: string | null) {
   return "/dashboard/retail";
 }
 
-function readSessionRole(cookieValue?: string) {
+function readSession(cookieValue?: string) {
   if (!cookieValue) return null;
   try {
     const json = Buffer.from(cookieValue, "base64url").toString("utf8");
-    const parsed = JSON.parse(json);
-    return String(parsed?.role ?? "").toLowerCase() || null;
+    return JSON.parse(json);
   } catch {
     return null;
   }
+}
+
+function isPendingSession(session?: { role?: string | null; status?: string | null } | null) {
+  const role = String(session?.role ?? "").toLowerCase().trim();
+  const status = String(session?.status ?? "").toLowerCase().trim();
+  return status === "pending" || role.endsWith("_pending");
 }
 
 export function middleware(request: Request) {
@@ -26,6 +31,7 @@ export function middleware(request: Request) {
     "/login",
     "/signup",
     "/register",
+    "/pending-approval",
     "/manifest.json",
     "/sw.js",
   ]);
@@ -45,7 +51,9 @@ export function middleware(request: Request) {
   // Read session from httpOnly cookie set by /api/login.
   // @ts-expect-error Next.js adds `cookies` to the request object in middleware runtime
   const cookieValue = request.cookies?.get?.("hch_session")?.value as string | undefined;
-  const role = readSessionRole(cookieValue);
+  const parsedSession = readSession(cookieValue);
+  const role = String(parsedSession?.role ?? "").toLowerCase() || null;
+  const hasPendingSession = isPendingSession(parsedSession);
   const isAuthed = Boolean(role);
 
   // Root and dashboards should never render for unauthenticated users.
@@ -61,6 +69,16 @@ export function middleware(request: Request) {
   if (!isAuthed && isProtected && !publicPaths.has(pathname)) {
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
+    return NextResponse.redirect(url);
+  }
+
+  if (isAuthed && hasPendingSession && pathname !== "/pending-approval") {
+    url.pathname = "/pending-approval";
+    return NextResponse.redirect(url);
+  }
+
+  if (isAuthed && !hasPendingSession && pathname === "/pending-approval") {
+    url.pathname = dashboardPathForRole(role);
     return NextResponse.redirect(url);
   }
 
