@@ -123,7 +123,7 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      if (role.startsWith("management")) {
+      if (role.startsWith("management") || role.endsWith("_pending")) {
         const { data, error } = await supabase
           .from("profiles")
           .select("id, username, phone, role, status")
@@ -244,6 +244,29 @@ export function AuthProvider({ children }) {
 
     return normalizedSession;
   }
+
+  const primeSession = useCallback((sessionLike, options = {}) => {
+    const rememberMe = Boolean(options?.rememberMe);
+    const normalizedSession = normalizeSession(sessionLike);
+
+    setSession(normalizedSession);
+    setAuthResolved(true);
+
+    if (typeof window !== "undefined" && normalizedSession) {
+      if (rememberMe) {
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedSession));
+        window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
+      } else {
+        window.sessionStorage.setItem(
+          SESSION_STORAGE_KEY,
+          JSON.stringify(normalizedSession)
+        );
+        window.localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+
+    return normalizedSession;
+  }, []);
 
   function redirectIfNeeded(nextPath) {
     if (typeof window === "undefined") {
@@ -467,9 +490,10 @@ export function AuthProvider({ children }) {
       isAuthenticated: Boolean(session && session.role !== "guest"),
       login,
       logout,
+      primeSession,
       session,
     }),
-    [authResolved, logout, session]
+    [authResolved, logout, primeSession, session]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

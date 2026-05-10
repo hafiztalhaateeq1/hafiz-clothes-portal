@@ -13,6 +13,8 @@ import {
   UserRound,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/app/ui/auth-provider";
 
 function isBlank(value) {
   return !String(value ?? "").trim();
@@ -86,6 +88,7 @@ function validateConfirmPassword(password, confirm) {
 
 export default function SignupPage() {
   const router = useRouter();
+  const { primeSession } = useAuth();
   const [step, setStep] = useState("select"); // select | form
   const [selectedRole, setSelectedRole] = useState(null); // retail | wholesale | management
   const [form, setForm] = useState({
@@ -264,6 +267,33 @@ export default function SignupPage() {
 
       if (!res.ok) {
         setErrorMessage(result?.error || "Unable to create account. Please try again.");
+        return;
+      }
+
+      if (selectedRole === "wholesale" || selectedRole === "management") {
+        const phoneAsEmail = `${payload.phone}@hch.com`;
+        const authResult = await supabase.auth.signInWithPassword({
+          email: phoneAsEmail,
+          password: payload.password,
+        });
+
+        if (authResult.error) {
+          console.error("Post-signup auth sync error:", authResult.error);
+        }
+
+        primeSession(
+          result?.session ?? {
+            customerId:
+              String(result?.profile?.id ?? result?.client?.id ?? "").trim() || null,
+            displayName: payload.username || payload.name,
+            phone: payload.phone,
+            role: selectedRole === "management" ? "management_pending" : "wholesale_pending",
+            status: "pending",
+          },
+          { rememberMe: false }
+        );
+
+        router.push("/pending-approval");
         return;
       }
 

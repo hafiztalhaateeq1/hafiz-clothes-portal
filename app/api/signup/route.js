@@ -67,6 +67,29 @@ async function insertClientWithFallback(clientPayload) {
   return { data: null, error: lastError };
 }
 
+async function insertProfileWithFallback(profilePayload) {
+  const attempts = [
+    profilePayload,
+    (() => {
+      const { username, phone, role, status } = profilePayload;
+      return { username, phone, role, status };
+    })(),
+    (() => {
+      const { phone, role, status } = profilePayload;
+      return { phone, role, status };
+    })(),
+  ];
+
+  let lastError = null;
+  for (const payload of attempts) {
+    const result = await supabase.from("profiles").insert([payload]).select("*").maybeSingle();
+    if (!result.error) return result;
+    lastError = result.error;
+  }
+
+  return { data: null, error: lastError };
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -186,9 +209,47 @@ export async function POST(request) {
       );
     }
 
+    let profileData = null;
+    if (isApprovalRole) {
+      const profileRole =
+        userType === "management" ? "management_pending" : "wholesale_pending";
+
+      const profileResult = await insertProfileWithFallback({
+        username,
+        phone,
+        role: profileRole,
+        status: "pending",
+      });
+
+      if (profileResult.error) {
+        console.error(
+          "SUPABASE PROFILE SIGNUP ERROR:",
+          profileResult.error.message,
+          profileResult.error.details,
+          profileResult.error.hint
+        );
+        return NextResponse.json(
+          { error: "Unable to create approval profile right now." },
+          { status: 500 }
+        );
+      }
+
+      profileData = profileResult.data;
+    }
+
     return NextResponse.json({
       ok: true,
       client: data,
+      profile: profileData,
+      session: isApprovalRole
+        ? {
+            customerId: String(profileData?.id ?? data?.id ?? "").trim() || null,
+            displayName: username || name,
+            phone,
+            role: userType === "management" ? "management_pending" : "wholesale_pending",
+            status: "pending",
+          }
+        : null,
       auth: {
         email: authSignup.phoneAsEmail,
         userId: authSignup.data?.user?.id ?? null,
