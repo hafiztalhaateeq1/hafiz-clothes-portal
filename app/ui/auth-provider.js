@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 const STORAGE_KEY = "hafiz-auth-session";
 const SESSION_STORAGE_KEY = "hafiz-auth-session-temporary";
 const AUTH_TIMEOUT_MS = 5000;
+const PUBLIC_PATHS = new Set(["/login", "/signup", "/register", "/pending", "/error"]);
 
 const AuthContext = createContext(null);
 
@@ -104,6 +105,19 @@ export function AuthProvider({ children }) {
     return normalizedSession;
   }
 
+  function redirectIfNeeded(nextPath) {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const currentPath = window.location.pathname;
+    if (currentPath === nextPath) {
+      return;
+    }
+
+    window.location.href = nextPath;
+  }
+
   useEffect(() => {
     let isActive = true;
     const timeoutId = window.setTimeout(() => {
@@ -116,6 +130,10 @@ export function AuthProvider({ children }) {
         currentSession ? normalizeSession(currentSession) : null
       );
       setAuthResolved(true);
+
+      if (typeof window !== "undefined" && !PUBLIC_PATHS.has(window.location.pathname)) {
+        redirectIfNeeded("/login");
+      }
     }, AUTH_TIMEOUT_MS);
 
     async function bootstrapAuth() {
@@ -131,13 +149,20 @@ export function AuthProvider({ children }) {
         }
 
         if (data?.session) {
-          setSession((currentSession) =>
-            currentSession ??
-            normalizeSession({
+          setSession((currentSession) => {
+            if (currentSession) {
+              return normalizeSession(currentSession);
+            }
+
+            return normalizeSession({
               displayName: "User",
               role: "guest",
-            })
-          );
+            });
+          });
+
+          if (!session && typeof window !== "undefined" && window.location.pathname !== "/pending") {
+            redirectIfNeeded("/pending");
+          }
         } else {
           setSession((currentSession) =>
             currentSession ? normalizeSession(currentSession) : null
@@ -163,7 +188,7 @@ export function AuthProvider({ children }) {
         if (typeof window !== "undefined") {
           window.localStorage.removeItem(STORAGE_KEY);
           window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-          window.location.href = "/login";
+          redirectIfNeeded("/login");
         }
         return;
       }
@@ -181,13 +206,13 @@ export function AuthProvider({ children }) {
             setSession((currentSession) => normalizeSession(currentSession));
           }
         } else {
-          setSession((currentSession) =>
-            normalizeSession(currentSession) ??
+          setSession(
             normalizeSession({
               displayName: "User",
               role: "guest",
             })
           );
+          redirectIfNeeded("/pending");
         }
 
         setAuthResolved(true);
@@ -218,9 +243,7 @@ export function AuthProvider({ children }) {
     // Best-effort: clear server-side auth cookie so middleware can stop treating the user as signed in.
     fetch("/api/logout", { method: "POST" }).catch(() => {});
 
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
-    }
+    redirectIfNeeded("/login");
   }
 
   const value = useMemo(

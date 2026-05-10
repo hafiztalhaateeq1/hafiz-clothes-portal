@@ -11,7 +11,7 @@ import {
   Settings,
   X,
 } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useAuth } from "@/app/ui/auth-provider";
 import { LanguageSwitcher, useLanguage } from "@/app/ui/language-provider";
 import { PortalNavigation } from "@/app/ui/portal-navigation";
@@ -24,7 +24,6 @@ const SHOP_INFO = {
 
 export function PortalShell({ children }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { authResolved, isAuthenticated, logout, session } = useAuth();
   const { language, setLanguage, t, languages } = useLanguage();
   const [mounted, setMounted] = useState(false);
@@ -42,51 +41,6 @@ export function PortalShell({ children }) {
       window.clearTimeout(timer);
     };
   }, []);
-
-  useEffect(() => {
-    if (!mounted || !authResolved) {
-      return;
-    }
-
-    const publicRoutes = new Set(["/login", "/signup", "/register"]);
-
-    if (!isAuthenticated && !publicRoutes.has(pathname)) {
-      router.replace("/login");
-      return;
-    }
-
-    if (
-      isAuthenticated &&
-      publicRoutes.has(pathname) &&
-      session?.role &&
-      session.role !== "guest"
-    ) {
-      const nextPath =
-        session?.role === "admin" || session?.role === "management"
-          ? "/dashboard/admin"
-          : session?.role === "wholesale"
-            ? "/dashboard/wholesale"
-            : "/dashboard/retail";
-      router.replace(nextPath);
-    }
-  }, [authResolved, isAuthenticated, mounted, pathname, router, session?.role]);
-
-  useEffect(() => {
-    if (!mounted || authResolved) {
-      return undefined;
-    }
-
-    const publicRoutes = new Set(["/login", "/signup", "/register"]);
-    const timer = window.setTimeout(() => {
-      if (!publicRoutes.has(pathname)) {
-        router.replace("/login");
-      }
-    }, 5000);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [authResolved, mounted, pathname, router]);
 
   const languageClass = mounted ? `language-${language}` : "language-en";
 
@@ -128,7 +82,7 @@ export function PortalShell({ children }) {
     return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
   }
 
-  if (pathname === "/login" || pathname === "/signup" || pathname === "/register") {
+  if (pathname === "/login" || pathname === "/signup" || pathname === "/register" || pathname === "/pending" || pathname === "/error") {
     return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
   }
 
@@ -144,13 +98,20 @@ export function PortalShell({ children }) {
     );
   }
 
-  if (!isAuthenticated) {
-    return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
+  if (!isAuthenticated || session?.role === "guest") {
+    return (
+      <div className={`portal-shell-root ${languageClass}`}>
+        <div className="min-h-screen flex items-center justify-center bg-[#FDF8F3]">
+          <div className="rounded-2xl border border-[#800000]/10 bg-white/80 px-6 py-5 text-sm font-semibold text-[#800000] shadow-lg">
+            Loading...
+          </div>
+        </div>
+      </div>
+    );
   }
 
   function handleLogout() {
     logout();
-    router.replace("/login");
   }
 
   return (
