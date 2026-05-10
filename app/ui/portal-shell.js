@@ -55,7 +55,12 @@ export function PortalShell({ children }) {
       return;
     }
 
-    if (isAuthenticated && publicRoutes.has(pathname)) {
+    if (
+      isAuthenticated &&
+      publicRoutes.has(pathname) &&
+      session?.role &&
+      session.role !== "guest"
+    ) {
       const nextPath =
         session?.role === "admin" || session?.role === "management"
           ? "/dashboard/admin"
@@ -65,6 +70,23 @@ export function PortalShell({ children }) {
       router.replace(nextPath);
     }
   }, [authResolved, isAuthenticated, mounted, pathname, router, session?.role]);
+
+  useEffect(() => {
+    if (!mounted || authResolved) {
+      return undefined;
+    }
+
+    const publicRoutes = new Set(["/login", "/signup", "/register"]);
+    const timer = window.setTimeout(() => {
+      if (!publicRoutes.has(pathname)) {
+        router.replace("/login");
+      }
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [authResolved, mounted, pathname, router]);
 
   const languageClass = mounted ? `language-${language}` : "language-en";
 
@@ -81,6 +103,9 @@ export function PortalShell({ children }) {
     }
     if (role === "retail") {
       return { label: "Retail Customer", badgeClass: "is-retail" };
+    }
+    if (role === "guest") {
+      return { label: "Guest", badgeClass: "is-retail" };
     }
     return { label: "Retail Customer", badgeClass: "is-retail" };
   }, [session?.role, t]);

@@ -11,6 +11,7 @@ import { supabase } from "@/lib/supabase";
 
 const STORAGE_KEY = "hafiz-auth-session";
 const SESSION_STORAGE_KEY = "hafiz-auth-session-temporary";
+const AUTH_TIMEOUT_MS = 5000;
 
 const AuthContext = createContext(null);
 
@@ -50,7 +51,7 @@ export function AuthProvider({ children }) {
       return null;
     }
   });
-  const [authResolved] = useState(true);
+  const [authResolved, setAuthResolved] = useState(false);
 
   async function login(credentials) {
     const rememberMe = Boolean(credentials?.rememberMe);
@@ -104,11 +105,60 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
+    let isActive = true;
+    const timeoutId = window.setTimeout(() => {
+      if (!isActive) {
+        return;
+      }
+
+      console.warn("Auth bootstrap timed out. Falling back to resolved state.");
+      setSession((currentSession) =>
+        currentSession ? normalizeSession(currentSession) : null
+      );
+      setAuthResolved(true);
+    }, AUTH_TIMEOUT_MS);
+
+    async function bootstrapAuth() {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error("Auth bootstrap error:", error);
+        }
+
+        if (!isActive) {
+          return;
+        }
+
+        if (data?.session) {
+          setSession((currentSession) =>
+            currentSession ??
+            normalizeSession({
+              displayName: "User",
+              role: "guest",
+            })
+          );
+        } else {
+          setSession((currentSession) =>
+            currentSession ? normalizeSession(currentSession) : null
+          );
+        }
+      } finally {
+        window.clearTimeout(timeoutId);
+        if (isActive) {
+          setAuthResolved(true);
+        }
+      }
+    }
+
+    bootstrapAuth();
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (event === "SIGNED_OUT" || !nextSession) {
         setSession(null);
+        setAuthResolved(true);
 
         if (typeof window !== "undefined") {
           window.localStorage.removeItem(STORAGE_KEY);
@@ -131,12 +181,22 @@ export function AuthProvider({ children }) {
             setSession((currentSession) => normalizeSession(currentSession));
           }
         } else {
-          setSession((currentSession) => normalizeSession(currentSession));
+          setSession((currentSession) =>
+            normalizeSession(currentSession) ??
+            normalizeSession({
+              displayName: "User",
+              role: "guest",
+            })
+          );
         }
+
+        setAuthResolved(true);
       }
     });
 
     return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, []);
@@ -167,7 +227,7 @@ export function AuthProvider({ children }) {
     () => ({
       authResolved,
       hasMounted: true,
-      isAuthenticated: Boolean(session),
+      isAuthenticated: Boolean(session && session.role !== "guest"),
       login,
       logout,
       session,
