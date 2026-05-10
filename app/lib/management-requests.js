@@ -2,23 +2,22 @@ import { supabase } from "@/lib/supabase";
 
 const EXACT_PENDING_STATUS = "pending";
 const EXACT_MANAGEMENT_ROLE = "management_pending";
+const EXACT_WHOLESALE_ROLE = "wholesale_pending";
 const CUSTOMER_PENDING_ROLES = ["retail", "wholesale"];
 
 export async function fetchPendingManagementRequests() {
   try {
     console.log("Pending Request Filters:", {
       table: "profiles",
-      role: EXACT_MANAGEMENT_ROLE,
+      roles: [EXACT_MANAGEMENT_ROLE, EXACT_WHOLESALE_ROLE],
       status: EXACT_PENDING_STATUS,
     });
 
     const result = await supabase
       .from("profiles")
       .select("id, username, phone, role, status")
-      .match({
-        role: EXACT_MANAGEMENT_ROLE,
-        status: EXACT_PENDING_STATUS,
-      });
+      .eq("status", EXACT_PENDING_STATUS)
+      .or(`role.eq.${EXACT_MANAGEMENT_ROLE},role.eq.${EXACT_WHOLESALE_ROLE}`);
 
     if (result.error) {
       console.error("FETCH_ERROR:", result.error);
@@ -37,7 +36,7 @@ export async function fetchPendingManagementRequests() {
     return {
       data: (result.data ?? []).map((row) => ({
         ...row,
-        username: row.username ?? "management_user",
+        username: row?.username ?? null,
         phone: row.phone ?? null,
         role: String(row.role ?? "").trim().toLowerCase(),
         status: String(row.status ?? "").trim().toLowerCase(),

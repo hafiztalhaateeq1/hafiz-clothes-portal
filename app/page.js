@@ -664,7 +664,7 @@ export default function Home() {
     };
   }, [isAdmin, session]);
 
-  async function handleManagementRequestAction(clientId, nextStatus) {
+  async function handleManagementRequestAction(clientId, nextStatus, requestRole) {
     const normalizedClientId = String(clientId ?? "").trim();
     if (!normalizedClientId) {
       return;
@@ -673,10 +673,18 @@ export default function Home() {
     setManagementActionId(normalizedClientId);
     setManagementRequestError("");
 
+    const normalizedRole = String(requestRole ?? "").trim().toLowerCase();
+    const approvedRole =
+      normalizedRole === "wholesale_pending" ? "wholesale" : "management";
+    const rejectedRole =
+      normalizedRole === "wholesale_pending"
+        ? "wholesale_rejected"
+        : "management_rejected";
+
     const updates =
       nextStatus === "active"
-        ? { role: "management", status: "active" }
-        : { role: "management_rejected", status: "rejected" };
+        ? { role: approvedRole, status: "active" }
+        : { role: rejectedRole, status: "rejected" };
 
     const result = await supabase
       .from("profiles")
@@ -1094,7 +1102,11 @@ export default function Home() {
                 const requestId = String(request.id ?? "");
                 const isActing = managementActionId === requestId;
                 const requestTitle =
-                  String(request.username ?? "").trim() || String(request.phone ?? "").trim() || "Management User";
+                  request?.username || request?.phone || "New Request";
+                const requestRoleLabel =
+                  request?.role === "wholesale_pending"
+                    ? "Pending Wholesale"
+                    : "Pending Management";
 
                 return (
                   <article key={requestId} className="dashboard-management-row">
@@ -1106,13 +1118,15 @@ export default function Home() {
                         <strong>{requestTitle}</strong>
                       </div>
                       <span>{request.phone ?? "No phone"}</span>
-                      <span className="dashboard-management-role-badge">Pending Management</span>
+                      <span className="dashboard-management-role-badge">{requestRoleLabel}</span>
                     </div>
                     <div className="dashboard-management-actions">
                       <button
                         type="button"
                         className="dashboard-management-approve"
-                        onClick={() => handleManagementRequestAction(requestId, "active")}
+                        onClick={() =>
+                          handleManagementRequestAction(requestId, "active", request.role)
+                        }
                         disabled={isActing}
                       >
                         {isActing ? "Updating..." : "Approve"}
@@ -1120,7 +1134,9 @@ export default function Home() {
                       <button
                         type="button"
                         className="dashboard-management-reject"
-                        onClick={() => handleManagementRequestAction(requestId, "rejected")}
+                        onClick={() =>
+                          handleManagementRequestAction(requestId, "rejected", request.role)
+                        }
                         disabled={isActing}
                       >
                         Reject
