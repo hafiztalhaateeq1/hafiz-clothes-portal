@@ -19,6 +19,7 @@ import {
   Ruler,
   TrendingDown,
   TrendingUp,
+  UserRound,
   Users,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -1051,13 +1052,20 @@ export default function Home() {
               pendingManagementRequests.map((request) => {
                 const requestId = String(request.id ?? "");
                 const isActing = managementActionId === requestId;
+                const requestTitle =
+                  String(request.username ?? "").trim() || String(request.phone ?? "").trim() || "Management User";
 
                 return (
                   <article key={requestId} className="dashboard-management-row">
                     <div className="dashboard-management-copy">
-                      <strong>{request.username ?? "management_user"}</strong>
+                      <div className="dashboard-management-title">
+                        <span className="dashboard-management-user-icon" aria-hidden="true">
+                          <UserRound size={16} strokeWidth={2.1} />
+                        </span>
+                        <strong>{requestTitle}</strong>
+                      </div>
                       <span>{request.phone ?? "No phone"}</span>
-                      <span>{request.role ?? "management_pending"}</span>
+                      <span className="dashboard-management-role-badge">Pending Management</span>
                     </div>
                     <div className="dashboard-management-actions">
                       <button

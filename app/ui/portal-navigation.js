@@ -14,7 +14,10 @@ import {
 import { useAuth } from "@/app/ui/auth-provider";
 import { useLanguage } from "@/app/ui/language-provider";
 import { supabase } from "@/lib/supabase";
-import { fetchPendingManagementRequests } from "@/app/lib/management-requests";
+import {
+  fetchPendingCustomerRequests,
+  fetchPendingManagementRequests,
+} from "@/app/lib/management-requests";
 
 const navigationItems = [
   { key: "dashboard", href: "/", icon: LayoutDashboard },
@@ -29,6 +32,7 @@ export function PortalNavigation({ collapsed = false }) {
   const pathname = usePathname();
   const { session } = useAuth();
   const { t } = useLanguage();
+  const [pendingCustomerCount, setPendingCustomerCount] = useState(0);
   const [pendingManagementCount, setPendingManagementCount] = useState(0);
   const canManagePortal = session?.role === "admin" || session?.role === "management";
 
@@ -43,24 +47,37 @@ export function PortalNavigation({ collapsed = false }) {
 
     let isCurrent = true;
 
-    async function loadPendingManagementCount() {
-      const result = await fetchPendingManagementRequests();
+    async function loadPendingCounts() {
+      const [customerResult, managementResult] = await Promise.all([
+        fetchPendingCustomerRequests(),
+        fetchPendingManagementRequests(),
+      ]);
 
-      if (!result.success || result.error) {
+      if (!customerResult.success || customerResult.error) {
         console.error(
           "SUPABASE_FETCH_ERROR:",
-          result.error?.message ?? result.error,
-          result.error
+          customerResult.error?.message ?? customerResult.error,
+          customerResult.error
+        );
+      } else if (isCurrent) {
+        setPendingCustomerCount((customerResult.data ?? []).length);
+      }
+
+      if (!managementResult.success || managementResult.error) {
+        console.error(
+          "SUPABASE_FETCH_ERROR:",
+          managementResult.error?.message ?? managementResult.error,
+          managementResult.error
         );
         return;
       }
 
       if (isCurrent) {
-        setPendingManagementCount((result.data ?? []).length);
+        setPendingManagementCount((managementResult.data ?? []).length);
       }
     }
 
-    loadPendingManagementCount();
+    loadPendingCounts();
 
     const channel = supabase
       .channel("management-request-badge")
@@ -68,7 +85,7 @@ export function PortalNavigation({ collapsed = false }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "profiles" },
         () => {
-          loadPendingManagementCount();
+          loadPendingCounts();
         }
       )
       .subscribe();
@@ -116,7 +133,15 @@ export function PortalNavigation({ collapsed = false }) {
             {!collapsed ? (
               <>
                 <span>{getLabel(item.key)}</span>
-                {item.key === "customers" && pendingManagementCount > 0 ? (
+                {item.key === "customers" && pendingCustomerCount > 0 ? (
+                  <span
+                    className="portal-nav-badge"
+                    aria-label={`${pendingCustomerCount} pending customer requests`}
+                  >
+                    {pendingCustomerCount}
+                  </span>
+                ) : null}
+                {item.key === "dashboard" && pendingManagementCount > 0 ? (
                   <span
                     className="portal-nav-badge"
                     aria-label={`${pendingManagementCount} pending management requests`}
@@ -125,7 +150,12 @@ export function PortalNavigation({ collapsed = false }) {
                   </span>
                 ) : null}
               </>
-            ) : item.key === "customers" && pendingManagementCount > 0 ? (
+            ) : item.key === "customers" && pendingCustomerCount > 0 ? (
+              <span
+                className="portal-nav-dot"
+                aria-label={`${pendingCustomerCount} pending customer requests`}
+              />
+            ) : item.key === "dashboard" && pendingManagementCount > 0 ? (
               <span
                 className="portal-nav-dot"
                 aria-label={`${pendingManagementCount} pending management requests`}

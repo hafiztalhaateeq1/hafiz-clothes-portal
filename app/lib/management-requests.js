@@ -2,14 +2,23 @@ import { supabase } from "@/lib/supabase";
 
 const EXACT_PENDING_STATUS = "pending";
 const EXACT_MANAGEMENT_ROLE = "management_pending";
+const CUSTOMER_PENDING_ROLES = ["retail", "wholesale"];
 
 export async function fetchPendingManagementRequests() {
   try {
+    console.log("Pending Request Filters:", {
+      table: "profiles",
+      role: EXACT_MANAGEMENT_ROLE,
+      status: EXACT_PENDING_STATUS,
+    });
+
     const result = await supabase
       .from("profiles")
       .select("id, username, phone, role, status")
-      .eq("role", EXACT_MANAGEMENT_ROLE)
-      .eq("status", EXACT_PENDING_STATUS)
+      .match({
+        role: EXACT_MANAGEMENT_ROLE,
+        status: EXACT_PENDING_STATUS,
+      });
 
     if (result.error) {
       console.error("FETCH_ERROR:", result.error);
@@ -34,6 +43,45 @@ export async function fetchPendingManagementRequests() {
         status: String(row.status ?? "").trim().toLowerCase(),
         sourceTable: "profiles",
       })),
+      error: null,
+      table: "profiles",
+      success: true,
+    };
+  } catch (error) {
+    console.error("FETCH_ERROR:", error);
+    console.error("SUPABASE_FETCH_ERROR:", error?.message ?? error, error);
+
+    return {
+      data: [],
+      error,
+      table: "profiles",
+      success: false,
+    };
+  }
+}
+
+export async function fetchPendingCustomerRequests() {
+  try {
+    const result = await supabase
+      .from("profiles")
+      .select("id, username, phone, role, status")
+      .eq("status", EXACT_PENDING_STATUS)
+      .in("role", CUSTOMER_PENDING_ROLES);
+
+    if (result.error) {
+      console.error("FETCH_ERROR:", result.error);
+      console.error("SUPABASE_FETCH_ERROR:", result.error?.message ?? result.error, result.error);
+
+      return {
+        data: [],
+        error: result.error,
+        table: "profiles",
+        success: false,
+      };
+    }
+
+    return {
+      data: result.data ?? [],
       error: null,
       table: "profiles",
       success: true,

@@ -6088,17 +6088,51 @@ h6,
 
 .dashboard-management-copy {
   display: grid;
-  gap: 0.2rem;
+  gap: 0.35rem;
+}
+
+.dashboard-management-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.dashboard-management-user-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.85rem;
+  height: 1.85rem;
+  border-radius: 999px;
+  background: rgba(128, 0, 0, 0.08);
+  color: var(--portal-maroon);
+  box-shadow: inset 0 0 0 1px rgba(128, 0, 0, 0.08);
 }
 
 .dashboard-management-copy strong {
   color: var(--portal-maroon);
-  font-size: 0.95rem;
+  font-size: 1.02rem;
+  font-weight: 750;
 }
 
 .dashboard-management-copy span {
   color: var(--portal-muted);
   font-size: 0.78rem;
+}
+
+.dashboard-management-role-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.16);
+  color: #a16207;
+  padding: 0.32rem 0.72rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.14);
 }
 
 .dashboard-management-actions {
