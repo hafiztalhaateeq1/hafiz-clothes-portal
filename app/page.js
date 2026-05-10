@@ -565,6 +565,10 @@ export default function Home() {
   }, [isAdmin, session?.customerId, chartRange]);
 
   useEffect(() => {
+    if (!session) {
+      return undefined;
+    }
+
     if (!session?.role) {
       return undefined;
     }
@@ -574,34 +578,70 @@ export default function Home() {
     }
 
     let isCurrent = true;
+    let loadingTimedOut = false;
+    const timeoutId = window.setTimeout(() => {
+      if (!isCurrent || loadingTimedOut) {
+        return;
+      }
 
-    async function loadPendingManagementRequests() {
+      loadingTimedOut = true;
+      setIsLoadingManagementRequests(false);
+      setManagementRequestError("Data timeout - please refresh");
+    }, 7000);
+
+    function loadPendingManagementRequests() {
+      if (!session) {
+        setIsLoadingManagementRequests(false);
+        return Promise.resolve();
+      }
+
       setIsLoadingManagementRequests(true);
       setManagementRequestError("");
       setHasLoadedManagementRequests(false);
 
-      const result = await fetchPendingManagementRequests();
+      return fetchPendingManagementRequests()
+        .then((result) => {
+          if (!isCurrent) {
+            return;
+          }
 
-      if (!result.success || result.error) {
-        console.error(
-          "SUPABASE_FETCH_ERROR:",
-          result.error?.message ?? result.error,
-          result.error
-        );
-        if (isCurrent) {
+          if (!result.success || result.error) {
+            console.error(
+              "SUPABASE_FETCH_ERROR:",
+              result.error?.message ?? result.error,
+              result.error
+            );
+            setPendingManagementRequests([]);
+            setManagementRequestError("Unable to load management requests right now.");
+            setHasLoadedManagementRequests(false);
+            return;
+          }
+
+          const nextRequests = Array.isArray(result.data) ? result.data : [];
+          setPendingManagementRequests(nextRequests);
+          setHasLoadedManagementRequests(true);
+          setManagementRequestError(
+            nextRequests.length === 0 ? "No pending requests found" : ""
+          );
+        })
+        .catch((error) => {
+          console.error("SUPABASE_FETCH_ERROR:", error?.message ?? error, error);
+          if (!isCurrent) {
+            return;
+          }
+
           setPendingManagementRequests([]);
           setManagementRequestError("Unable to load management requests right now.");
           setHasLoadedManagementRequests(false);
-          setIsLoadingManagementRequests(false);
-        }
-        return;
-      }
+        })
+        .finally(() => {
+          if (!isCurrent) {
+            return;
+          }
 
-      if (isCurrent) {
-        setPendingManagementRequests(result.data ?? []);
-        setHasLoadedManagementRequests(true);
-        setIsLoadingManagementRequests(false);
-      }
+          window.clearTimeout(timeoutId);
+          setIsLoadingManagementRequests(false);
+        });
     }
 
     loadPendingManagementRequests();
@@ -619,9 +659,10 @@ export default function Home() {
 
     return () => {
       isCurrent = false;
+      window.clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
-  }, [isAdmin, session?.role]);
+  }, [isAdmin, session]);
 
   async function handleManagementRequestAction(clientId, nextStatus) {
     const normalizedClientId = String(clientId ?? "").trim();
