@@ -158,6 +158,7 @@ export default function Home() {
   const [insight, setInsight] = useState(null);
   const [lowStockProducts, setLowStockProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [dashboardLoadError, setDashboardLoadError] = useState("");
   const [pendingManagementRequests, setPendingManagementRequests] = useState([]);
   const [isLoadingManagementRequests, setIsLoadingManagementRequests] = useState(false);
   const [hasLoadedManagementRequests, setHasLoadedManagementRequests] = useState(false);
@@ -242,8 +243,18 @@ export default function Home() {
   useEffect(() => {
     let isMounted = true;
 
-    async function fetchDashboardMetrics() {
+    function fetchDashboardMetrics() {
       setIsLoading(true);
+      setDashboardLoadError("");
+
+      const timeoutId = window.setTimeout(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setIsLoading(false);
+        setDashboardLoadError("Data timeout - please refresh");
+      }, 5000);
 
       let nextMetrics = { ...initialMetrics };
       let nextHistory = [];
@@ -251,310 +262,339 @@ export default function Home() {
       let nextInsight = null;
       let nextLowStockProducts = [];
 
-      try {
-        const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const ledgerDevLimit = process.env.NODE_ENV === "development" ? 100 : 5000;
-        const rangeDays = chartRange === "30d" ? 30 : 7;
+      return Promise.resolve()
+        .then(async () => {
+          console.log("Query Sent to Supabase");
 
-        // Simple range keys: group by created_at.slice(0, 10) (YYYY-MM-DD).
-        const endDate = new Date(now);
-        const startDate = new Date(now);
-        startDate.setDate(now.getDate() - (rangeDays - 1));
+          const now = new Date();
+          const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+          const ledgerDevLimit = process.env.NODE_ENV === "development" ? 100 : 5000;
+          const rangeDays = chartRange === "30d" ? 30 : 7;
 
-        const startKey = startDate.toISOString().slice(0, 10);
-        const endKey = endDate.toISOString().slice(0, 10);
-        const startDateIso = `${startKey}T00:00:00.000Z`;
-        const endDateIso = `${endKey}T23:59:59.999Z`;
+          // Simple range keys: group by created_at.slice(0, 10) (YYYY-MM-DD).
+          const endDate = new Date(now);
+          const startDate = new Date(now);
+          startDate.setDate(now.getDate() - (rangeDays - 1));
 
-        const productsCountPromise = supabase
-          .from("products")
-          .select("id", { count: "exact", head: true });
+          const startKey = startDate.toISOString().slice(0, 10);
+          const endKey = endDate.toISOString().slice(0, 10);
+          const startDateIso = `${startKey}T00:00:00.000Z`;
+          const endDateIso = `${endKey}T23:59:59.999Z`;
 
-        if (isAdmin) {
-          const productsInventoryPromise = supabase
+          const productsCountPromise = supabase
             .from("products")
-            .select("id, name, stock_meters, purchase_price");
+            .select("id", { count: "exact", head: true });
 
-          const ledgerProfitPromise = supabase
-            .from("ledger")
-            .select("created_at, total_bill, total_price, quantity_meters, products(purchase_price)")
-            .gte("created_at", startOfMonth.toISOString())
-            .order("created_at", { ascending: false })
-            .limit(ledgerDevLimit);
+          if (isAdmin) {
+            const productsInventoryPromise = supabase
+              .from("products")
+              .select("id, name, stock_meters, purchase_price");
 
-          const expensesPromise = (async () => {
-            // Use created_at for expense date logic on dashboard to avoid schema mismatch.
-            let result = await supabase
-              .from("expenses")
-              .select("amount, created_at")
-              .order("created_at", { ascending: false })
-              .limit(1000);
-
-            if (result.error) {
-              logSupabaseError("SUPABASE EXPENSES ERROR:", result.error);
-              // If ordering column doesn't exist, retry without order.
-              result = await supabase.from("expenses").select("amount, created_at").limit(1000);
-              if (result.error) {
-                logSupabaseError("SUPABASE EXPENSES ERROR (fallback no order):", result.error);
-              }
-            }
-
-            return result;
-          })();
-
-          const [
-            clientsResult,
-            productsResult,
-            productsInventoryResult,
-            ledgerAllResult,
-            ledgerRecentResult,
-            ledgerRangeResult,
-            ledgerMonthResult,
-            ledgerProfitResult,
-            expensesResult,
-          ] = await Promise.all([
-            supabase.from("clients").select("id", { count: "exact", head: true }),
-            productsCountPromise,
-            productsInventoryPromise,
-            supabase
+            const ledgerProfitPromise = supabase
               .from("ledger")
-              .select("total_bill, total_price, amount_paid")
-              .order("created_at", { ascending: false })
-              .limit(ledgerDevLimit),
-            supabase
-              .from("ledger")
-              .select(
-                "id, created_at, total_bill, total_price, amount_paid, balance, clients(name), products(name), quantity_meters"
-              )
-              .order("created_at", { ascending: false })
-              .order("id", { ascending: false })
-              .limit(5),
-            supabase
-              .from("ledger")
-              .select("created_at, quantity_meters")
-              .gte("created_at", startDateIso)
-              .lte("created_at", endDateIso)
-              .order("created_at", { ascending: false })
-              .limit(ledgerDevLimit),
-            supabase
-              .from("ledger")
-              .select("quantity_meters")
+              .select("created_at, total_bill, total_price, quantity_meters, products(purchase_price)")
               .gte("created_at", startOfMonth.toISOString())
               .order("created_at", { ascending: false })
-              .limit(ledgerDevLimit),
-            ledgerProfitPromise,
-            expensesPromise,
-          ]);
+              .limit(ledgerDevLimit);
 
-          nextMetrics.totalCustomers = clientsResult.count ?? 0;
-          nextMetrics.activeProducts = productsResult.count ?? 0;
+            const expensesPromise = (async () => {
+              // Use created_at for expense date logic on dashboard to avoid schema mismatch.
+              let result = await supabase
+                .from("expenses")
+                .select("amount, created_at")
+                .order("created_at", { ascending: false })
+                .limit(1000);
 
-          if (!productsInventoryResult.error) {
-            const rows = productsInventoryResult.data ?? [];
-            nextMetrics.totalInventoryValue = rows.reduce((sum, item) => {
-              const stock = toNumber(item.stock_meters ?? item.stock_quantity);
-              const purchasePrice = toNumber(item.purchase_price);
-              return sum + stock * purchasePrice;
-            }, 0);
-
-            nextLowStockProducts = rows
-              .map((item) => ({
-                id: item.id,
-                name: item.name ?? "Item",
-                stockMeters: toNumber(item.stock_meters ?? item.stock_quantity),
-              }))
-              .filter((item) => item.stockMeters > 0 && item.stockMeters < 50)
-              .sort((a, b) => a.stockMeters - b.stockMeters)
-              .slice(0, 3);
-          } else {
-            // If purchase_price or stock_meters columns are missing, ignore inventory stats.
-            console.warn("Dashboard inventory fetch error:", productsInventoryResult.error.message || productsInventoryResult.error);
-            nextLowStockProducts = [];
-          }
-
-          if (ledgerAllResult.error) {
-            logSupabaseError("SUPABASE LEDGER TOTALS ERROR:", ledgerAllResult.error);
-          } else {
-            const ledgerRows = ledgerAllResult.data ?? [];
-
-            nextMetrics.totalBilled = ledgerRows.reduce((sum, entry) => {
-              const total = toNumber(entry.total_bill ?? entry.total_price);
-              return sum + total;
-            }, 0);
-
-            nextMetrics.totalPaidAll = ledgerRows.reduce((sum, entry) => sum + getAmountPaid(entry), 0);
-
-            nextMetrics.totalRecovery = ledgerRows.reduce((sum, entry) => {
-              const total = toNumber(entry.total_bill ?? entry.total_price);
-              const paid = getAmountPaid(entry);
-              return sum + Math.max(total - paid, 0);
-            }, 0);
-          }
-
-          if (!ledgerMonthResult.error) {
-            nextMetrics.monthlyMeters = (ledgerMonthResult.data ?? []).reduce(
-              (sum, entry) => sum + toNumber(entry.quantity_meters),
-              0
-            );
-          } else {
-            logSupabaseError("SUPABASE LEDGER MONTH ERROR:", ledgerMonthResult.error);
-          }
-
-          if (!ledgerProfitResult.error) {
-            const rows = ledgerProfitResult.data ?? [];
-            const totalSales = rows.reduce((sum, entry) => {
-              const total = toNumber(entry.total_bill ?? entry.total_price);
-              return sum + total;
-            }, 0);
-
-            const totalCost = rows.reduce((sum, entry) => {
-              const meters = toNumber(entry.quantity_meters);
-              const purchasePrice = toNumber(entry.products?.purchase_price);
-              return sum + meters * purchasePrice;
-            }, 0);
-
-            nextMetrics.grossProfit = totalSales - totalCost;
-          } else {
-            console.warn(
-              "Dashboard profit fetch error:",
-              ledgerProfitResult.error.message || ledgerProfitResult.error
-            );
-            nextMetrics.grossProfit = 0;
-          }
-
-          if (!expensesResult.error) {
-            const month = now.getMonth();
-            const year = now.getFullYear();
-
-            const totalExpenses = (expensesResult.data ?? []).reduce((sum, entry) => {
-              const dateValue = entry.created_at ?? null;
-              const date = new Date(dateValue);
-              if (Number.isNaN(date.getTime())) return sum;
-              if (date.getMonth() !== month || date.getFullYear() !== year) return sum;
-              return sum + toNumber(entry.amount);
-            }, 0);
-
-            nextMetrics.monthlyExpenses = totalExpenses;
-            console.log("Total Expenses Fetched:", totalExpenses);
-          } else {
-            console.warn(
-              "Dashboard expenses fetch error:",
-              expensesResult.error.message || expensesResult.error
-            );
-            nextMetrics.monthlyExpenses = 0;
-          }
-
-          nextMetrics.netProfit =
-            toNumber(nextMetrics.grossProfit) - toNumber(nextMetrics.monthlyExpenses);
-
-          if (!ledgerRecentResult.error) {
-            const rows = ledgerRecentResult.data ?? [];
-            nextHistory = normalizeHistoryEntries(rows, true);
-          }
-
-          if (!ledgerRangeResult.error) {
-            console.log("Current Date Range:", { startDate: startDateIso, endDate: endDateIso });
-            console.log("Fetched Ledger:", ledgerRangeResult.data ?? []);
-
-            const buckets = new Map();
-            for (let offset = 0; offset < rangeDays; offset += 1) {
-              const day = new Date(startDate);
-              day.setDate(startDate.getDate() + offset);
-              const key = day.toISOString().slice(0, 10);
-              buckets.set(key, {
-                dayKey: key,
-                label: formatDayLabel(day),
-                meters: 0,
-              });
-            }
-
-            let currentMeters = 0;
-            let previousMeters = 0;
-
-            (ledgerRangeResult.data ?? []).forEach((row) => {
-              const key = String(row.created_at ?? "").slice(0, 10);
-              if (!key) return;
-              const meters = Number.parseFloat(row.quantity_meters ?? 0);
-              if (!Number.isFinite(meters)) return;
-
-              if (buckets.has(key)) {
-                buckets.get(key).meters += meters;
-                currentMeters += meters;
-              } else {
-                previousMeters += meters;
+              if (result.error) {
+                logSupabaseError("SUPABASE EXPENSES ERROR:", result.error);
+                // If ordering column doesn't exist, retry without order.
+                result = await supabase.from("expenses").select("amount, created_at").limit(1000);
+                if (result.error) {
+                  logSupabaseError("SUPABASE EXPENSES ERROR (fallback no order):", result.error);
+                }
               }
+
+              return result;
+            })();
+
+            const [
+              clientsResult,
+              productsResult,
+              productsInventoryResult,
+              ledgerAllResult,
+              ledgerRecentResult,
+              ledgerRangeResult,
+              ledgerMonthResult,
+              ledgerProfitResult,
+              expensesResult,
+            ] = await Promise.all([
+              supabase.from("clients").select("id", { count: "exact", head: true }),
+              productsCountPromise,
+              productsInventoryPromise,
+              supabase
+                .from("ledger")
+                .select("total_bill, total_price, amount_paid")
+                .order("created_at", { ascending: false })
+                .limit(ledgerDevLimit),
+              supabase
+                .from("ledger")
+                .select(
+                  "id, created_at, total_bill, total_price, amount_paid, balance, clients(name), products(name), quantity_meters"
+                )
+                .order("created_at", { ascending: false })
+                .order("id", { ascending: false })
+                .limit(5),
+              supabase
+                .from("ledger")
+                .select("created_at, quantity_meters")
+                .gte("created_at", startDateIso)
+                .lte("created_at", endDateIso)
+                .order("created_at", { ascending: false })
+                .limit(ledgerDevLimit),
+              supabase
+                .from("ledger")
+                .select("quantity_meters")
+                .gte("created_at", startOfMonth.toISOString())
+                .order("created_at", { ascending: false })
+                .limit(ledgerDevLimit),
+              ledgerProfitPromise,
+              expensesPromise,
+            ]);
+
+            console.log("Data Received:", {
+              clients: clientsResult,
+              products: productsResult,
+              ledgerRecent: ledgerRecentResult?.data ?? null,
             });
 
-            nextWeeklyMeters = Array.from(buckets.values());
+            nextMetrics.totalCustomers = clientsResult.count ?? 0;
+            nextMetrics.activeProducts = productsResult.count ?? 0;
 
-            if (previousMeters > 0) {
-              const delta = currentMeters - previousMeters;
-              const pct = (delta / previousMeters) * 100;
-              nextInsight = {
-                pct,
-                direction: pct >= 0 ? "up" : "down",
-              };
-            } else if (currentMeters > 0) {
-              nextInsight = { pct: 100, direction: "up" };
+            if (!productsInventoryResult.error) {
+              const rows = productsInventoryResult.data ?? [];
+              nextMetrics.totalInventoryValue = rows.reduce((sum, item) => {
+                const stock = toNumber(item.stock_meters ?? item.stock_quantity);
+                const purchasePrice = toNumber(item.purchase_price);
+                return sum + stock * purchasePrice;
+              }, 0);
+
+              nextLowStockProducts = rows
+                .map((item) => ({
+                  id: item.id,
+                  name: item.name ?? "Item",
+                  stockMeters: toNumber(item.stock_meters ?? item.stock_quantity),
+                }))
+                .filter((item) => item.stockMeters > 0 && item.stockMeters < 50)
+                .sort((a, b) => a.stockMeters - b.stockMeters)
+                .slice(0, 3);
             } else {
-              nextInsight = { pct: 0, direction: "flat" };
+              // If purchase_price or stock_meters columns are missing, ignore inventory stats.
+              console.warn("Dashboard inventory fetch error:", productsInventoryResult.error.message || productsInventoryResult.error);
+              nextLowStockProducts = [];
+            }
+
+            if (ledgerAllResult.error) {
+              logSupabaseError("SUPABASE LEDGER TOTALS ERROR:", ledgerAllResult.error);
+            } else {
+              const ledgerRows = ledgerAllResult.data ?? [];
+
+              nextMetrics.totalBilled = ledgerRows.reduce((sum, entry) => {
+                const total = toNumber(entry.total_bill ?? entry.total_price);
+                return sum + total;
+              }, 0);
+
+              nextMetrics.totalPaidAll = ledgerRows.reduce((sum, entry) => sum + getAmountPaid(entry), 0);
+
+              nextMetrics.totalRecovery = ledgerRows.reduce((sum, entry) => {
+                const total = toNumber(entry.total_bill ?? entry.total_price);
+                const paid = getAmountPaid(entry);
+                return sum + Math.max(total - paid, 0);
+              }, 0);
+            }
+
+            if (!ledgerMonthResult.error) {
+              nextMetrics.monthlyMeters = (ledgerMonthResult.data ?? []).reduce(
+                (sum, entry) => sum + toNumber(entry.quantity_meters),
+                0
+              );
+            } else {
+              logSupabaseError("SUPABASE LEDGER MONTH ERROR:", ledgerMonthResult.error);
+            }
+
+            if (!ledgerProfitResult.error) {
+              const rows = ledgerProfitResult.data ?? [];
+              const totalSales = rows.reduce((sum, entry) => {
+                const total = toNumber(entry.total_bill ?? entry.total_price);
+                return sum + total;
+              }, 0);
+
+              const totalCost = rows.reduce((sum, entry) => {
+                const meters = toNumber(entry.quantity_meters);
+                const purchasePrice = toNumber(entry.products?.purchase_price);
+                return sum + meters * purchasePrice;
+              }, 0);
+
+              nextMetrics.grossProfit = totalSales - totalCost;
+            } else {
+              console.warn(
+                "Dashboard profit fetch error:",
+                ledgerProfitResult.error.message || ledgerProfitResult.error
+              );
+              nextMetrics.grossProfit = 0;
+            }
+
+            if (!expensesResult.error) {
+              const month = now.getMonth();
+              const year = now.getFullYear();
+
+              const totalExpenses = (expensesResult.data ?? []).reduce((sum, entry) => {
+                const dateValue = entry.created_at ?? null;
+                const date = new Date(dateValue);
+                if (Number.isNaN(date.getTime())) return sum;
+                if (date.getMonth() !== month || date.getFullYear() !== year) return sum;
+                return sum + toNumber(entry.amount);
+              }, 0);
+
+              nextMetrics.monthlyExpenses = totalExpenses;
+              console.log("Total Expenses Fetched:", totalExpenses);
+            } else {
+              console.warn(
+                "Dashboard expenses fetch error:",
+                expensesResult.error.message || expensesResult.error
+              );
+              nextMetrics.monthlyExpenses = 0;
+            }
+
+            nextMetrics.netProfit =
+              toNumber(nextMetrics.grossProfit) - toNumber(nextMetrics.monthlyExpenses);
+
+            if (!ledgerRecentResult.error) {
+              const rows = ledgerRecentResult.data ?? [];
+              nextHistory = normalizeHistoryEntries(rows, true);
+            }
+
+            if (!ledgerRangeResult.error) {
+              console.log("Current Date Range:", { startDate: startDateIso, endDate: endDateIso });
+              console.log("Fetched Ledger:", ledgerRangeResult.data ?? []);
+
+              const buckets = new Map();
+              for (let offset = 0; offset < rangeDays; offset += 1) {
+                const day = new Date(startDate);
+                day.setDate(startDate.getDate() + offset);
+                const key = day.toISOString().slice(0, 10);
+                buckets.set(key, {
+                  dayKey: key,
+                  label: formatDayLabel(day),
+                  meters: 0,
+                });
+              }
+
+              let currentMeters = 0;
+              let previousMeters = 0;
+
+              (ledgerRangeResult.data ?? []).forEach((row) => {
+                const key = String(row.created_at ?? "").slice(0, 10);
+                if (!key) return;
+                const meters = Number.parseFloat(row.quantity_meters ?? 0);
+                if (!Number.isFinite(meters)) return;
+
+                if (buckets.has(key)) {
+                  buckets.get(key).meters += meters;
+                  currentMeters += meters;
+                } else {
+                  previousMeters += meters;
+                }
+              });
+
+              nextWeeklyMeters = Array.from(buckets.values());
+
+              if (previousMeters > 0) {
+                const delta = currentMeters - previousMeters;
+                const pct = (delta / previousMeters) * 100;
+                nextInsight = {
+                  pct,
+                  direction: pct >= 0 ? "up" : "down",
+                };
+              } else if (currentMeters > 0) {
+                nextInsight = { pct: 100, direction: "up" };
+              } else {
+                nextInsight = { pct: 0, direction: "flat" };
+              }
+            } else {
+              logSupabaseError("SUPABASE LEDGER RANGE ERROR:", ledgerRangeResult.error);
             }
           }
           else {
-            logSupabaseError("SUPABASE LEDGER RANGE ERROR:", ledgerRangeResult.error);
+            const [productsResult, ledgerResult] = await Promise.all([
+              productsCountPromise,
+              session?.customerId
+                  ? supabase
+                      .from("ledger")
+                      .select(
+                        "id, created_at, total_bill, total_price, amount_paid, balance, quantity_meters, products!inner(name, price_per_meter, wholesale_price)"
+                      )
+                      .eq("client_id", session.customerId)
+                      .order("id", { ascending: false })
+                : Promise.resolve({ data: [], error: null }),
+            ]);
+
+            console.log("Data Received:", ledgerResult?.data ?? null);
+
+            nextMetrics.activeProducts = productsResult.count ?? 0;
+
+            if (!ledgerResult.error) {
+              const ledgerRows = ledgerResult.data ?? [];
+              nextMetrics.totalSales = ledgerRows.reduce(
+                (sum, entry) => sum + toNumber(entry.total_bill ?? entry.total_price),
+                0
+              );
+              nextMetrics.totalMetersSold = ledgerRows.reduce(
+                (sum, entry) => sum + toNumber(entry.quantity_meters),
+                0
+              );
+              nextMetrics.amountPaid = ledgerRows.reduce(
+                (sum, entry) => sum + getAmountPaid(entry),
+                0
+              );
+              nextMetrics.remainingBalance = ledgerRows.reduce(
+                (sum, entry) => sum + getBalance(entry),
+                0
+              );
+              nextHistory = normalizeHistoryEntries(ledgerRows, false).slice(0, 5);
+            }
           }
-        } else {
-          const [productsResult, ledgerResult] = await Promise.all([
-            productsCountPromise,
-            session?.customerId
-                ? supabase
-                    .from("ledger")
-                    .select(
-                      "id, created_at, total_bill, total_price, amount_paid, balance, quantity_meters, products!inner(name, price_per_meter, wholesale_price)"
-                    )
-                    .eq("client_id", session.customerId)
-                    .order("id", { ascending: false })
-              : Promise.resolve({ data: [], error: null }),
-          ]);
-
-          nextMetrics.activeProducts = productsResult.count ?? 0;
-
-          if (!ledgerResult.error) {
-            const ledgerRows = ledgerResult.data ?? [];
-            nextMetrics.totalSales = ledgerRows.reduce(
-              (sum, entry) => sum + toNumber(entry.total_bill ?? entry.total_price),
-              0
-            );
-            nextMetrics.totalMetersSold = ledgerRows.reduce(
-              (sum, entry) => sum + toNumber(entry.quantity_meters),
-              0
-            );
-            nextMetrics.amountPaid = ledgerRows.reduce(
-              (sum, entry) => sum + getAmountPaid(entry),
-              0
-            );
-            nextMetrics.remainingBalance = ledgerRows.reduce(
-              (sum, entry) => sum + getBalance(entry),
-              0
-            );
-            nextHistory = normalizeHistoryEntries(ledgerRows, false).slice(0, 5);
+        })
+        .then(() => {
+          if (!isMounted) {
+            return;
           }
-        }
-      } catch (error) {
-        console.error("Dashboard fetch error:", error);
-      }
 
-      if (!isMounted) {
-        return;
-      }
+          setMetrics(nextMetrics);
+          setRecentTransactions(nextHistory);
+          setWeeklyMeters(nextWeeklyMeters);
+          setInsight(nextInsight);
+          setLowStockProducts(nextLowStockProducts);
 
-      setMetrics(nextMetrics);
-      setRecentTransactions(nextHistory);
-      setWeeklyMeters(nextWeeklyMeters);
-      setInsight(nextInsight);
-      setLowStockProducts(nextLowStockProducts);
-      setIsLoading(false);
+          if (!nextHistory.length) {
+            setDashboardLoadError("No records found");
+          }
+        })
+        .catch((error) => {
+          console.error("Dashboard fetch error:", error);
+          if (!isMounted) {
+            return;
+          }
+
+          setDashboardLoadError("No records found");
+        })
+        .finally(() => {
+          window.clearTimeout(timeoutId);
+          if (!isMounted) {
+            return;
+          }
+
+          setIsLoading(false);
+        });
     }
 
     fetchDashboardMetrics();
@@ -953,6 +993,10 @@ export default function Home() {
           </article>
         ))}
       </div>
+
+      {dashboardLoadError ? (
+        <p className="dashboard-management-feedback">{dashboardLoadError}</p>
+      ) : null}
 
       {isAdmin ? (
         <section className="dashboard-activity-card dashboard-chart-card">
