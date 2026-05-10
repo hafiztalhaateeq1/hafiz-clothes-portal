@@ -44,6 +44,12 @@ function isPublicPath(pathname) {
   return PUBLIC_PATHS.has(pathname);
 }
 
+function isPendingSession(sessionLike) {
+  const role = String(sessionLike?.role ?? "").toLowerCase().trim();
+  const status = String(sessionLike?.status ?? "").toLowerCase().trim();
+  return status === "pending" || role.endsWith("_pending");
+}
+
 function clearBrowserStorage() {
   if (typeof window === "undefined") {
     return;
@@ -325,6 +331,13 @@ export function AuthProvider({ children }) {
                   JSON.stringify(refreshedSession)
                 );
               }
+
+              if (
+                isPendingSession(refreshedSession) &&
+                window.location.pathname !== "/pending-approval"
+              ) {
+                redirectIfNeeded("/pending-approval");
+              }
             }
           }
         } else {
@@ -412,6 +425,12 @@ export function AuthProvider({ children }) {
 
         if (refreshedSession) {
           setSession(refreshedSession);
+          if (
+            isPendingSession(refreshedSession) &&
+            window.location.pathname !== "/pending-approval"
+          ) {
+            redirectIfNeeded("/pending-approval");
+          }
         }
         setAuthResolved(true);
       }
