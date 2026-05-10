@@ -183,6 +183,13 @@ export default function SignupPage() {
     setErrorMessage("");
   }
 
+  function handleRoleSelect(event, role) {
+    event.preventDefault();
+    setSelectedRole(role);
+    setStep("form");
+    setErrorMessage("");
+  }
+
   async function handleSubmit(event) {
     event.preventDefault();
 
@@ -354,11 +361,7 @@ export default function SignupPage() {
                 >
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedRole("retail");
-                      setStep("form");
-                      setErrorMessage("");
-                    }}
+                    onClick={(event) => handleRoleSelect(event, "retail")}
                     className="group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 text-left shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <span className="flex items-center gap-3">
@@ -377,11 +380,7 @@ export default function SignupPage() {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedRole("wholesale");
-                      setStep("form");
-                      setErrorMessage("");
-                    }}
+                    onClick={(event) => handleRoleSelect(event, "wholesale")}
                     className="group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 text-left shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <span className="flex items-center gap-3">
@@ -400,11 +399,7 @@ export default function SignupPage() {
 
                   <button
                     type="button"
-                    onClick={() => {
-                      setSelectedRole("management");
-                      setStep("form");
-                      setErrorMessage("");
-                    }}
+                    onClick={(event) => handleRoleSelect(event, "management")}
                     className="group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 text-left shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md"
                   >
                     <span className="flex items-center gap-3">
