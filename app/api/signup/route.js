@@ -11,7 +11,7 @@ function sha256Hex(value) {
   return crypto.createHash("sha256").update(String(value ?? ""), "utf8").digest("hex");
 }
 
-async function signUpAuthAccount({ fullName, phoneNumber, password, role }) {
+async function signUpAuthAccount({ username, phoneNumber, password, role }) {
   const phoneAsEmail = `${phoneNumber}@hch.com`;
 
   const { data, error } = await supabase.auth.signUp({
@@ -19,7 +19,7 @@ async function signUpAuthAccount({ fullName, phoneNumber, password, role }) {
     password,
     options: {
       data: {
-        full_name: fullName,
+        username,
         phone: phoneNumber,
         role,
       },
@@ -67,27 +67,34 @@ async function insertClientWithFallback(clientPayload) {
   return { data: null, error: lastError };
 }
 
-async function insertProfileWithFallback(profilePayload) {
-  const attempts = [
-    profilePayload,
-    (() => {
-      const { username, phone, role, status } = profilePayload;
-      return { username, phone, role, status };
-    })(),
-    (() => {
-      const { phone, role, status } = profilePayload;
-      return { phone, role, status };
-    })(),
-  ];
+async function waitForApprovalProfile({ username, phone, role, timeoutMs = 8000 }) {
+  const startedAt = Date.now();
 
-  let lastError = null;
-  for (const payload of attempts) {
-    const result = await supabase.from("profiles").insert([payload]).select("*").maybeSingle();
-    if (!result.error) return result;
-    lastError = result.error;
+  while (Date.now() - startedAt < timeoutMs) {
+    const query = await supabase
+      .from("profiles")
+      .select("id, username, phone, role, status")
+      .eq("role", role)
+      .eq("status", "pending")
+      .or(`username.eq.${username},phone.eq.${phone}`)
+      .limit(1)
+      .maybeSingle();
+
+    if (!query.error && query.data) {
+      return { data: query.data, error: null };
+    }
+
+    if (query.error) {
+      return { data: null, error: query.error };
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, 500));
   }
 
-  return { data: null, error: lastError };
+  return {
+    data: null,
+    error: new Error("Timed out waiting for approval profile to be created."),
+  };
 }
 
 export async function POST(request) {
@@ -151,7 +158,7 @@ export async function POST(request) {
 
     // Create Supabase Auth account using phone-as-email.
   const authSignup = await signUpAuthAccount({
-    fullName: name,
+    username,
     phoneNumber: phone,
     password,
     role:
@@ -214,11 +221,10 @@ export async function POST(request) {
       const profileRole =
         userType === "management" ? "management_pending" : "wholesale_pending";
 
-      const profileResult = await insertProfileWithFallback({
+      const profileResult = await waitForApprovalProfile({
         username,
         phone,
         role: profileRole,
-        status: "pending",
       });
 
       if (profileResult.error) {
