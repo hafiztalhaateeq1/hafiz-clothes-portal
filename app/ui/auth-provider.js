@@ -32,6 +32,10 @@ function normalizeSession(sessionLike) {
   };
 }
 
+function isPublicPath(pathname) {
+  return PUBLIC_PATHS.has(pathname);
+}
+
 export function AuthProvider({ children }) {
   const [session, setSession] = useState(() => {
     if (typeof window === "undefined") {
@@ -138,7 +142,7 @@ export function AuthProvider({ children }) {
       );
       setAuthResolved(true);
 
-      if (typeof window !== "undefined" && !PUBLIC_PATHS.has(window.location.pathname)) {
+      if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
         redirectIfNeeded("/login");
       }
     }, AUTH_TIMEOUT_MS);
@@ -170,7 +174,7 @@ export function AuthProvider({ children }) {
           if (
             !sessionRef.current &&
             typeof window !== "undefined" &&
-            window.location.pathname !== "/pending"
+            !isPublicPath(window.location.pathname)
           ) {
             redirectIfNeeded("/pending");
           }
@@ -199,7 +203,9 @@ export function AuthProvider({ children }) {
         if (typeof window !== "undefined") {
           window.localStorage.removeItem(STORAGE_KEY);
           window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
-          redirectIfNeeded("/login");
+          if (!isPublicPath(window.location.pathname)) {
+            redirectIfNeeded("/login");
+          }
         }
         return;
       }
@@ -223,7 +229,9 @@ export function AuthProvider({ children }) {
               role: "guest",
             })
           );
-          redirectIfNeeded("/pending");
+          if (!isPublicPath(window.location.pathname)) {
+            redirectIfNeeded("/pending");
+          }
         }
 
         setAuthResolved(true);
