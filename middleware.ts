@@ -76,6 +76,33 @@ function buildRedirect(request: NextRequest, pathname: string, nextPath?: string
   return NextResponse.redirect(url);
 }
 
+function appendExpiredAuthCookies(request: NextRequest, response: NextResponse) {
+  const authCookieNames = new Set(["hch_session"]);
+
+  request.cookies.getAll().forEach((cookie) => {
+    if (
+      cookie.name === "hch_session" ||
+      cookie.name.startsWith("sb-") ||
+      cookie.name.includes("supabase") ||
+      cookie.name.includes("auth-token")
+    ) {
+      authCookieNames.add(cookie.name);
+    }
+  });
+
+  authCookieNames.forEach((cookieName) => {
+    response.cookies.set(cookieName, "", {
+      path: "/",
+      sameSite: "lax",
+      secure: true,
+      maxAge: 0,
+      expires: new Date(0),
+    });
+  });
+
+  return response;
+}
+
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const response = NextResponse.next();
@@ -91,14 +118,18 @@ export function middleware(request: NextRequest) {
   const isPendingApproval = pathname === "/pending-approval";
   const isSignup = pathname.startsWith("/signup");
   const isRegister = pathname === "/register";
+  const hasCookieSession = Boolean(request.cookies.get("hch_session")?.value);
 
   if (isRoot) {
     if (!hasSession) {
-      return buildRedirect(request, "/login");
+      const loginRedirect = buildRedirect(request, "/login");
+      return hasCookieSession
+        ? appendExpiredAuthCookies(request, loginRedirect)
+        : loginRedirect;
     }
 
     if (hasRejectedSession) {
-      return buildRedirect(request, "/login");
+      return appendExpiredAuthCookies(request, buildRedirect(request, "/login"));
     }
 
     if (hasPendingSession) {
@@ -106,7 +137,7 @@ export function middleware(request: NextRequest) {
     }
 
     if (!hasActiveSession) {
-      return buildRedirect(request, "/login");
+      return appendExpiredAuthCookies(request, buildRedirect(request, "/login"));
     }
 
     return buildRedirect(request, dashboardPathForRole(role));
@@ -114,11 +145,14 @@ export function middleware(request: NextRequest) {
 
   if (isProtected) {
     if (!hasSession) {
-      return buildRedirect(request, "/login", pathname);
+      const loginRedirect = buildRedirect(request, "/login", pathname);
+      return hasCookieSession
+        ? appendExpiredAuthCookies(request, loginRedirect)
+        : loginRedirect;
     }
 
     if (hasRejectedSession) {
-      return buildRedirect(request, "/login");
+      return appendExpiredAuthCookies(request, buildRedirect(request, "/login"));
     }
 
     if (hasPendingSession) {
@@ -126,7 +160,7 @@ export function middleware(request: NextRequest) {
     }
 
     if (!hasActiveSession) {
-      return buildRedirect(request, "/login");
+      return appendExpiredAuthCookies(request, buildRedirect(request, "/login"));
     }
 
     return response;
@@ -134,11 +168,14 @@ export function middleware(request: NextRequest) {
 
   if (isPendingApproval) {
     if (!hasSession) {
-      return buildRedirect(request, "/login");
+      const loginRedirect = buildRedirect(request, "/login");
+      return hasCookieSession
+        ? appendExpiredAuthCookies(request, loginRedirect)
+        : loginRedirect;
     }
 
     if (hasRejectedSession) {
-      return buildRedirect(request, "/login");
+      return appendExpiredAuthCookies(request, buildRedirect(request, "/login"));
     }
 
     if (hasPendingSession) {
@@ -149,7 +186,7 @@ export function middleware(request: NextRequest) {
       return buildRedirect(request, dashboardPathForRole(role));
     }
 
-    return buildRedirect(request, "/login");
+    return appendExpiredAuthCookies(request, buildRedirect(request, "/login"));
   }
 
   if (isLogin || isSignup || isRegister) {
@@ -158,7 +195,7 @@ export function middleware(request: NextRequest) {
     }
 
     if (hasRejectedSession) {
-      return isLogin ? response : buildRedirect(request, "/login");
+      return isLogin ? appendExpiredAuthCookies(request, response) : appendExpiredAuthCookies(request, buildRedirect(request, "/login"));
     }
 
     if (hasPendingSession) {
@@ -169,7 +206,7 @@ export function middleware(request: NextRequest) {
       return buildRedirect(request, dashboardPathForRole(role));
     }
 
-    return buildRedirect(request, "/login");
+    return appendExpiredAuthCookies(request, buildRedirect(request, "/login"));
   }
 
   return response;
