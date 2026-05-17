@@ -40,7 +40,7 @@ function normalizeSession(sessionLike) {
 }
 
 function isPublicPath(pathname) {
-  return PUBLIC_PATHS.has(pathname);
+  return pathname.startsWith("/signup") || PUBLIC_PATHS.has(pathname);
 }
 
 function isPendingSession(sessionLike) {

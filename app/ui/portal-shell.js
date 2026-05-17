@@ -28,6 +28,17 @@ function isPendingUser(sessionLike) {
   return status === "pending" || role.endsWith("_pending");
 }
 
+function isPublicShellPath(pathname) {
+  return (
+    pathname === "/login" ||
+    pathname.startsWith("/signup") ||
+    pathname === "/register" ||
+    pathname === "/pending" ||
+    pathname === "/pending-approval" ||
+    pathname === "/error"
+  );
+}
+
 function ShellStatusScreen({ languageClass, label }) {
   return (
     <div className={`portal-shell-root ${languageClass}`}>
@@ -69,11 +80,11 @@ export function PortalShell({ children }) {
       return;
     }
 
-    if (!isAuthenticated || session?.role === "guest") {
-      if (pathname === "/login") {
-        return;
-      }
+    if (isPublicShellPath(pathname)) {
+      return;
+    }
 
+    if (!isAuthenticated || session?.role === "guest") {
       window.location.href = "/login";
       return;
     }
@@ -130,12 +141,7 @@ export function PortalShell({ children }) {
   }
 
   if (
-    pathname === "/login" ||
-    pathname === "/signup" ||
-    pathname === "/register" ||
-    pathname === "/pending" ||
-    pathname === "/pending-approval" ||
-    pathname === "/error"
+    isPublicShellPath(pathname)
   ) {
     return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
   }

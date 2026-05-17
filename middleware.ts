@@ -23,18 +23,20 @@ function isPendingSession(session?: { role?: string | null; status?: string | nu
   return status === "pending" || role.endsWith("_pending");
 }
 
+function isPublicPath(pathname: string) {
+  return (
+    pathname === "/login" ||
+    pathname.startsWith("/signup") ||
+    pathname === "/register" ||
+    pathname === "/pending-approval" ||
+    pathname === "/manifest.json" ||
+    pathname === "/sw.js"
+  );
+}
+
 export function middleware(request: Request) {
   const url = new URL(request.url);
   const pathname = url.pathname;
-
-  const publicPaths = new Set([
-    "/login",
-    "/signup",
-    "/register",
-    "/pending-approval",
-    "/manifest.json",
-    "/sw.js",
-  ]);
 
   // Skip Next internals and API routes.
   if (
@@ -45,6 +47,10 @@ export function middleware(request: Request) {
     pathname.startsWith("/fonts") ||
     pathname.match(/\.(png|jpg|jpeg|svg|webp|ico|txt)$/)
   ) {
+    return NextResponse.next();
+  }
+
+  if (pathname.startsWith("/signup")) {
     return NextResponse.next();
   }
 
@@ -66,7 +72,7 @@ export function middleware(request: Request) {
     pathname.startsWith("/expenses") ||
     pathname.startsWith("/reports");
 
-  if (!isAuthed && isProtected && !publicPaths.has(pathname)) {
+  if (!isAuthed && isProtected && !isPublicPath(pathname)) {
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
     return NextResponse.redirect(url);
@@ -83,7 +89,7 @@ export function middleware(request: Request) {
   }
 
   // If already authenticated, keep auth screens from flashing.
-  if (isAuthed && publicPaths.has(pathname)) {
+  if (isAuthed && isPublicPath(pathname)) {
     url.pathname = dashboardPathForRole(role);
     return NextResponse.redirect(url);
   }
