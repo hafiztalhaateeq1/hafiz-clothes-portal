@@ -137,6 +137,7 @@ export function AuthProvider({ children }) {
   const sessionRef = useRef(session);
   const rejectionHandledRef = useRef(false);
   const logoutInProgressRef = useRef(false);
+  const bootstrapInProgressRef = useRef(true);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -432,6 +433,7 @@ export function AuthProvider({ children }) {
         return;
       }
 
+      bootstrapInProgressRef.current = true;
       setAuthLoading(true);
 
       try {
@@ -538,6 +540,7 @@ export function AuthProvider({ children }) {
           setAuthLoading(false);
         }
       } finally {
+        bootstrapInProgressRef.current = false;
         if (isActive && !logoutInProgressRef.current) {
           setAuthResolved(true);
           setAuthLoading(false);
@@ -554,7 +557,7 @@ export function AuthProvider({ children }) {
         return;
       }
 
-      if (event === "SIGNED_OUT" || !nextSession) {
+      if (event === "SIGNED_OUT") {
         rejectionHandledRef.current = false;
         resetAuthState();
         clearBrowserState();
@@ -566,6 +569,10 @@ export function AuthProvider({ children }) {
       }
 
       if (!nextSession) {
+        if (bootstrapInProgressRef.current || authLoading) {
+          return;
+        }
+
         return;
       }
 
@@ -636,7 +643,7 @@ export function AuthProvider({ children }) {
       isActive = false;
       subscription.unsubscribe();
     };
-  }, [hydrateFreshSession, invalidateStaleSession, rejectSessionAccess, resetAuthState]);
+  }, [authLoading, hydrateFreshSession, invalidateStaleSession, rejectSessionAccess, resetAuthState]);
 
   useEffect(() => {
     if (logoutInProgressRef.current || !authResolved || !session) {

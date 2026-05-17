@@ -76,7 +76,7 @@ export function PortalShell({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!mounted || !authResolved) {
+    if (!mounted || authLoading || !authResolved) {
       return;
     }
 
@@ -98,7 +98,7 @@ export function PortalShell({ children }) {
     }
 
     window.location.href = "/pending-approval";
-  }, [authResolved, isAuthenticated, mounted, pathname, session]);
+  }, [authLoading, authResolved, isAuthenticated, mounted, pathname, session]);
 
   const languageClass = mounted ? `language-${language}` : "language-en";
 
@@ -147,7 +147,7 @@ export function PortalShell({ children }) {
   }
 
   if (authLoading || !authResolved) {
-    return <ShellStatusScreen languageClass={languageClass} label="Loading..." />;
+    return <ShellStatusScreen languageClass={languageClass} label="Loading Portal..." />;
   }
 
   if (!isAuthenticated || session?.role === "guest") {
