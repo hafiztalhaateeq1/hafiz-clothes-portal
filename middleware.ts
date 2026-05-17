@@ -1,136 +1,192 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+
+type PortalSession = {
+  role?: string | null;
+  status?: string | null;
+};
+
+const PROTECTED_PREFIXES = [
+  "/dashboard",
+  "/catalogue",
+  "/ledger",
+  "/customers",
+  "/expenses",
+  "/reports",
+];
 
 function dashboardPathForRole(role?: string | null) {
-  const normalized = String(role ?? "").toLowerCase();
-  if (normalized === "admin" || normalized === "management") return "/dashboard/admin";
-  if (normalized === "wholesale") return "/dashboard/wholesale";
+  const normalizedRole = String(role ?? "").toLowerCase().trim();
+
+  if (normalizedRole === "admin" || normalizedRole === "management") {
+    return "/dashboard/admin";
+  }
+
+  if (normalizedRole === "wholesale") {
+    return "/dashboard/wholesale";
+  }
+
   return "/dashboard/retail";
 }
 
 function readSession(cookieValue?: string) {
-  if (!cookieValue) return null;
+  if (!cookieValue) {
+    return null;
+  }
+
   try {
     const json = Buffer.from(cookieValue, "base64url").toString("utf8");
-    return JSON.parse(json);
+    return JSON.parse(json) as PortalSession;
   } catch {
     return null;
   }
 }
 
-function isPendingSession(session?: { role?: string | null; status?: string | null } | null) {
+function isPendingSession(session?: PortalSession | null) {
   const role = String(session?.role ?? "").toLowerCase().trim();
   const status = String(session?.status ?? "").toLowerCase().trim();
   return status === "pending" || role.endsWith("_pending");
 }
 
-function isRejectedSession(session?: { role?: string | null; status?: string | null } | null) {
+function isRejectedSession(session?: PortalSession | null) {
   const role = String(session?.role ?? "").toLowerCase().trim();
   const status = String(session?.status ?? "").toLowerCase().trim();
   return status === "rejected" || role.endsWith("_rejected");
 }
 
-function isActiveSession(session?: { status?: string | null; role?: string | null } | null) {
+function isActiveSession(session?: PortalSession | null) {
   const role = String(session?.role ?? "").toLowerCase().trim();
   const status = String(session?.status ?? "").toLowerCase().trim();
   return role === "admin" || status === "active";
 }
 
-function isPublicPath(pathname: string) {
-  return (
-    pathname === "/login" ||
-    pathname.startsWith("/signup") ||
-    pathname === "/register" ||
-    pathname === "/pending-approval" ||
-    pathname === "/manifest.json" ||
-    pathname === "/sw.js"
-  );
+function isProtectedPath(pathname: string) {
+  return PROTECTED_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
 }
 
-export function middleware(request: Request) {
-  const url = new URL(request.url);
-  const pathname = url.pathname;
+function buildRedirect(request: NextRequest, pathname: string, nextPath?: string) {
+  const url = request.nextUrl.clone();
+  url.pathname = pathname;
 
-  // Skip Next internals and API routes.
-  if (
-    pathname.startsWith("/_next") ||
-    pathname.startsWith("/api") ||
-    pathname.startsWith("/favicon") ||
-    pathname.startsWith("/icons") ||
-    pathname.startsWith("/fonts") ||
-    pathname.match(/\.(png|jpg|jpeg|svg|webp|ico|txt)$/)
-  ) {
-    return NextResponse.next();
+  if (nextPath) {
+    url.searchParams.set("next", nextPath);
+  } else {
+    url.searchParams.delete("next");
   }
 
-  if (pathname.startsWith("/signup")) {
-    return NextResponse.next();
-  }
+  return NextResponse.redirect(url);
+}
 
-  if (pathname === "/pending-approval") {
-    return NextResponse.next();
-  }
-
-  // Read session from httpOnly cookie set by /api/login.
-  // @ts-expect-error Next.js adds `cookies` to the request object in middleware runtime
-  const cookieValue = request.cookies?.get?.("hch_session")?.value as string | undefined;
-  const parsedSession = readSession(cookieValue);
-  const role = String(parsedSession?.role ?? "").toLowerCase() || null;
+export function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const response = NextResponse.next();
+  const parsedSession = readSession(request.cookies.get("hch_session")?.value);
+  const role = String(parsedSession?.role ?? "").toLowerCase().trim();
+  const hasSession = Boolean(parsedSession && role);
   const hasPendingSession = isPendingSession(parsedSession);
   const hasRejectedSession = isRejectedSession(parsedSession);
   const hasActiveSession = isActiveSession(parsedSession);
-  const isAuthed = Boolean(role);
+  const isProtected = isProtectedPath(pathname);
+  const isRoot = pathname === "/";
+  const isLogin = pathname === "/login";
+  const isPendingApproval = pathname === "/pending-approval";
+  const isSignup = pathname.startsWith("/signup");
+  const isRegister = pathname === "/register";
 
-  // Root and dashboards should never render for unauthenticated users.
-  const isProtected =
-    pathname === "/" ||
-    pathname.startsWith("/dashboard") ||
-    pathname.startsWith("/catalogue") ||
-    pathname.startsWith("/ledger") ||
-    pathname.startsWith("/customers") ||
-    pathname.startsWith("/expenses") ||
-    pathname.startsWith("/reports");
+  if (isRoot) {
+    if (!hasSession) {
+      return buildRedirect(request, "/login");
+    }
 
-  if (!isAuthed && isProtected && !isPublicPath(pathname)) {
-    url.pathname = "/login";
-    url.searchParams.set("next", pathname);
-    return NextResponse.redirect(url);
+    if (hasRejectedSession) {
+      return buildRedirect(request, "/login");
+    }
+
+    if (hasPendingSession) {
+      return buildRedirect(request, "/pending-approval");
+    }
+
+    if (!hasActiveSession) {
+      return buildRedirect(request, "/login");
+    }
+
+    return buildRedirect(request, dashboardPathForRole(role));
   }
 
-  if (isAuthed && hasRejectedSession) {
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  if (isProtected) {
+    if (!hasSession) {
+      return buildRedirect(request, "/login", pathname);
+    }
+
+    if (hasRejectedSession) {
+      return buildRedirect(request, "/login");
+    }
+
+    if (hasPendingSession) {
+      return isPendingApproval ? response : buildRedirect(request, "/pending-approval");
+    }
+
+    if (!hasActiveSession) {
+      return buildRedirect(request, "/login");
+    }
+
+    return response;
   }
 
-  if (isAuthed && hasPendingSession) {
-    url.pathname = "/pending-approval";
-    return NextResponse.redirect(url);
+  if (isPendingApproval) {
+    if (!hasSession) {
+      return buildRedirect(request, "/login");
+    }
+
+    if (hasRejectedSession) {
+      return buildRedirect(request, "/login");
+    }
+
+    if (hasPendingSession) {
+      return response;
+    }
+
+    if (hasActiveSession) {
+      return buildRedirect(request, dashboardPathForRole(role));
+    }
+
+    return buildRedirect(request, "/login");
   }
 
-  if (isAuthed && !hasActiveSession && isProtected && pathname !== "/pending-approval") {
-    url.pathname = "/login";
-    return NextResponse.redirect(url);
+  if (isLogin || isSignup || isRegister) {
+    if (!hasSession) {
+      return response;
+    }
+
+    if (hasRejectedSession) {
+      return isLogin ? response : buildRedirect(request, "/login");
+    }
+
+    if (hasPendingSession) {
+      return buildRedirect(request, "/pending-approval");
+    }
+
+    if (hasActiveSession) {
+      return buildRedirect(request, dashboardPathForRole(role));
+    }
+
+    return buildRedirect(request, "/login");
   }
 
-  if (isAuthed && !hasPendingSession && pathname === "/pending-approval") {
-    url.pathname = dashboardPathForRole(role);
-    return NextResponse.redirect(url);
-  }
-
-  // If already authenticated, keep auth screens from flashing.
-  if (isAuthed && isPublicPath(pathname)) {
-    url.pathname = dashboardPathForRole(role);
-    return NextResponse.redirect(url);
-  }
-
-  // If authenticated and hitting /, send to role dashboard (prevents any / flash).
-  if (isAuthed && pathname === "/") {
-    url.pathname = dashboardPathForRole(role);
-    return NextResponse.redirect(url);
-  }
-
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image).*)"],
+  matcher: [
+    "/",
+    "/login",
+    "/signup/:path*",
+    "/register",
+    "/pending-approval",
+    "/dashboard/:path*",
+    "/catalogue/:path*",
+    "/ledger/:path*",
+    "/customers/:path*",
+    "/expenses/:path*",
+    "/reports/:path*",
+  ],
 };
