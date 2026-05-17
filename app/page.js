@@ -733,6 +733,7 @@ export default function Home() {
 
     if (result.error) {
       console.error("Management request action error:", result.error);
+      alert("Database Error: " + result.error.message);
       setManagementRequestError("Unable to update this management request right now.");
       setManagementActionId("");
       return;
