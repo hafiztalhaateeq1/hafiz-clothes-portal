@@ -15,6 +15,7 @@ import {
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/ui/auth-provider";
+import { SocialLinksRow } from "@/app/ui/social-links-row";
 
 function isBlank(value) {
   return !String(value ?? "").trim();
@@ -347,7 +348,7 @@ function SignupForm() {
               </div>
             </div>
 
-            <div className="relative">
+            <div className="relative z-10">
               <div
                 aria-hidden="true"
                 className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_55%),radial-gradient(circle_at_bottom,rgba(128,0,0,0.10),transparent_55%)] blur-2xl"
@@ -681,11 +682,13 @@ function SignupForm() {
                     </a>
                   </div>
                 </form>
+                </div>
               </div>
+
+              <SocialLinksRow className="relative z-10 mx-auto mt-5 w-full max-w-md sm:mt-6" />
             </div>
           </div>
         </div>
-      </div>
     </section>
   );
 }

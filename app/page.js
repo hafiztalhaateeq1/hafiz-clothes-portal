@@ -27,6 +27,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/ui/auth-provider";
 import { usePortalBadges } from "@/app/ui/portal-badges-provider";
 import { useLanguage } from "@/app/ui/language-provider";
+import { SocialLinksRow } from "@/app/ui/social-links-row";
 import { translations } from "@/app/lib/translations";
 import { fetchPendingManagementRequests } from "@/app/lib/management-requests";
 
@@ -1460,6 +1461,8 @@ export default function Home() {
           </table>
         </div>
       </section>
+
+      <SocialLinksRow className="mb-3 sm:mb-5" />
     </section>
   );
 }

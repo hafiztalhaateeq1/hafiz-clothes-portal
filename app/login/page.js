@@ -14,6 +14,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/app/ui/auth-provider";
 import { useLanguage } from "@/app/ui/language-provider";
+import { SocialLinksRow } from "@/app/ui/social-links-row";
 import { supabase } from "@/lib/supabase";
 
 function dashboardPathForRole(role) {
@@ -328,220 +329,225 @@ export default function LoginPage() {
         </div>
 
         <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-6xl items-start justify-center pt-16 lg:min-h-0 lg:justify-start lg:pt-8">
-          <div className="grid w-full grid-cols-1 items-stretch gap-8 lg:grid-cols-[1.1fr_minmax(0,28rem)]">
-            <div className="hidden lg:flex flex-col justify-center">
-              <div className="z-10 rounded-3xl border border-white/60 bg-white p-10 shadow-xl backdrop-blur-xl">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#b58a00]">
-                  {copy.desktopEyebrow}
-                </p>
-                <h1 className={`mt-3 text-3xl leading-tight text-[#800000] ${isUrdu ? "urdu-text font-semibold" : "font-[650]"}`}>
-                  {copy.desktopTitle}
-                </h1>
+          <div className="w-full">
+            <div className="grid w-full grid-cols-1 items-stretch gap-8 lg:grid-cols-[1.1fr_minmax(0,28rem)]">
+              <div className="relative hidden lg:flex flex-col justify-center">
+                <div className="z-10 rounded-3xl border border-white/60 bg-white p-10 shadow-xl backdrop-blur-xl">
+                  <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[#b58a00]">
+                    {copy.desktopEyebrow}
+                  </p>
+                  <h1 className={`mt-3 text-3xl leading-tight text-[#800000] ${isUrdu ? "urdu-text font-semibold" : "font-[650]"}`}>
+                    {copy.desktopTitle}
+                  </h1>
 
-                <p className={`mt-6 text-sm leading-relaxed text-[#5b3a3a] ${isUrdu ? "urdu-text text-base" : ""}`}>
-                  {copy.desktopBody}
-                </p>
+                  <p className={`mt-6 text-sm leading-relaxed text-[#5b3a3a] ${isUrdu ? "urdu-text text-base" : ""}`}>
+                    {copy.desktopBody}
+                  </p>
+                </div>
+
+                <SocialLinksRow className="mx-auto mt-8" variant="auth" />
               </div>
-            </div>
 
-            <div className="relative">
-              <div
-                aria-hidden="true"
-                className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_55%),radial-gradient(circle_at_bottom,rgba(128,0,0,0.10),transparent_55%)] blur-2xl"
-              />
-
-              <div className="relative z-10 mx-auto w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_28px_60px_rgba(69,9,9,0.16)] sm:p-8">
-                <div>
-                  <h2 className={`text-base text-[#800000] sm:text-lg ${isUrdu ? "urdu-text font-semibold" : "font-[650]"}`}>
-                    {step === "select" ? copy.chooseAccess : roleCopy.title}
-                  </h2>
-                </div>
-
-                <p className={`mt-3 text-sm text-[#5b3a3a] ${isUrdu ? "urdu-text text-base" : ""}`}>
-                  {roleCopy.hint}
-                </p>
-
-                {/* Step 1: Role selection */}
+              <div className="relative z-10">
                 <div
-                  className={`mt-6 grid gap-3 transition-all duration-200 ${
-                    step === "select" ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 -translate-y-2 h-0 overflow-hidden"
-                  }`}
-                >
-                  <button
-                    type="button"
-                    onClick={() => chooseRole("management")}
-                    className={`group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md ${isUrdu ? "text-right" : "text-left"}`}
+                  aria-hidden="true"
+                  className="pointer-events-none absolute -inset-4 rounded-[2rem] bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.18),transparent_55%),radial-gradient(circle_at_bottom,rgba(128,0,0,0.10),transparent_55%)] blur-2xl"
+                />
+
+                <div className="relative z-10 mx-auto w-full max-w-md rounded-3xl border border-gray-100 bg-white p-6 shadow-[0_28px_60px_rgba(69,9,9,0.16)] sm:p-8">
+                  <div>
+                    <h2 className={`text-base text-[#800000] sm:text-lg ${isUrdu ? "urdu-text font-semibold" : "font-[650]"}`}>
+                      {step === "select" ? copy.chooseAccess : roleCopy.title}
+                    </h2>
+                  </div>
+
+                  <p className={`mt-3 text-sm text-[#5b3a3a] ${isUrdu ? "urdu-text text-base" : ""}`}>
+                    {roleCopy.hint}
+                  </p>
+
+                  {/* Step 1: Role selection */}
+                  <div
+                    className={`mt-6 grid gap-3 transition-all duration-200 ${
+                      step === "select" ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 -translate-y-2 h-0 overflow-hidden"
+                    }`}
                   >
-                    <span className={`flex items-center gap-3 ${isUrdu ? "flex-row-reverse" : ""}`}>
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#800000]/10 text-[#800000]">
-                        <Building2 className="h-5 w-5" />
-                      </span>
-                      <span>
-                        <span className={`block text-sm font-bold text-[#241816] ${isUrdu ? "urdu-text text-base" : ""}`}>{copy.management}</span>
-                        <span className={`block text-xs text-gray-500 ${isUrdu ? "urdu-text text-sm" : ""}`}>{copy.managementHint}</span>
-                      </span>
-                    </span>
-                    <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
-                      {copy.continue}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => chooseRole("wholesale")}
-                    className={`group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md ${isUrdu ? "text-right" : "text-left"}`}
-                  >
-                    <span className={`flex items-center gap-3 ${isUrdu ? "flex-row-reverse" : ""}`}>
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#800000]/10 text-[#800000]">
-                        <Handshake className="h-5 w-5" />
-                      </span>
-                      <span>
-                        <span className={`block text-sm font-bold text-[#241816] ${isUrdu ? "urdu-text text-base" : ""}`}>{copy.wholesale}</span>
-                        <span className={`block text-xs text-gray-500 ${isUrdu ? "urdu-text text-sm" : ""}`}>{copy.partnerHint}</span>
-                      </span>
-                    </span>
-                    <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
-                      {copy.continue}
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => chooseRole("retail")}
-                    className={`group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md ${isUrdu ? "text-right" : "text-left"}`}
-                  >
-                    <span className={`flex items-center gap-3 ${isUrdu ? "flex-row-reverse" : ""}`}>
-                      <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#800000]/10 text-[#800000]">
-                        <Store className="h-5 w-5" />
-                      </span>
-                      <span>
-                        <span className={`block text-sm font-bold text-[#241816] ${isUrdu ? "urdu-text text-base" : ""}`}>{copy.retail}</span>
-                        <span className={`block text-xs text-gray-500 ${isUrdu ? "urdu-text text-sm" : ""}`}>{copy.partnerHint}</span>
-                      </span>
-                    </span>
-                    <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
-                      {copy.continue}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Step 2: Role-specific form */}
-                <div
-                  className={`transition-all duration-200 ${
-                    step === "form" ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 translate-y-2 h-0 overflow-hidden"
-                  }`}
-                >
-                  <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-                    <label className="block">
-                      <span className="sr-only">
-                        {selectedRole === "management" ? copy.username : copy.phone}
-                      </span>
-                      <div className="relative">
-                        <UserRound
-                          className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 ${
-                            isUrdu ? "right-3" : "left-3"
-                          }`}
-                        />
-                        <input
-                          name="identifier"
-                          type={selectedRole === "management" ? "text" : "tel"}
-                          value={form.identifier}
-                          onChange={handleChange}
-                          placeholder={selectedRole === "management" ? copy.username : copy.phone}
-                          autoComplete="username"
-                          inputMode={selectedRole === "management" ? undefined : "tel"}
-                          maxLength={selectedRole === "management" ? undefined : 11}
-                          dir={selectedRole === "management" && isUrdu ? "rtl" : "ltr"}
-                          className={`h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25 ${
-                            isUrdu ? "pr-10 pl-4 text-right" : "pl-10 pr-4 text-left"
-                          }`}
-                        />
-                      </div>
-                    </label>
-
-                    <label className="block">
-                      <span className="sr-only">{copy.password}</span>
-                      <div className="relative">
-                        <LockKeyhole
-                          className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 ${
-                            isUrdu ? "right-3" : "left-3"
-                          }`}
-                        />
-                        <input
-                          name="password"
-                          type={showPassword ? "text" : "password"}
-                          value={form.password}
-                          onChange={handleChange}
-                          placeholder={copy.password}
-                          autoComplete="current-password"
-                          dir="ltr"
-                          className={`h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25 ${
-                            isUrdu ? "pr-10 pl-12 text-right" : "pl-10 pr-12 text-left"
-                          }`}
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowPassword((value) => !value)}
-                          className={`absolute top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-400 transition hover:text-[#800000] focus:outline-none focus:ring-2 focus:ring-[#800000]/25 ${
-                            isUrdu ? "left-3" : "right-3"
-                          }`}
-                          aria-label={showPassword ? copy.hidePassword : copy.showPassword}
-                        >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
-                      </div>
-                    </label>
-
-                    <label className={`flex items-center justify-between gap-3 pt-1 text-sm text-gray-600 ${isUrdu ? "urdu-text" : ""}`}>
-                      <span className={`flex items-center gap-2 ${isUrdu ? "flex-row-reverse" : ""}`}>
-                        <input
-                          type="checkbox"
-                          checked={rememberMe}
-                          onChange={(e) => setRememberMe(e.target.checked)}
-                          className="h-4 w-4 rounded border-gray-300 text-[#800000] focus:ring-2 focus:ring-[#800000]/25"
-                        />
-                        {copy.rememberMe}
-                      </span>
-                    </label>
-
-                    {errorMessage ? (
-                      <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                        {errorMessage}
-                      </p>
-                    ) : null}
-
                     <button
-                      type="submit"
-                      disabled={!form.identifier.trim() || !form.password.trim() || isSubmitting}
-                      className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#800000] to-[#5b0303] text-sm font-bold text-white shadow-lg shadow-[#800000]/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+                      type="button"
+                      onClick={() => chooseRole("management")}
+                      className={`group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md ${isUrdu ? "text-right" : "text-left"}`}
                     >
-                      {isSubmitting ? copy.signingIn : copy.signIn}
+                      <span className={`flex items-center gap-3 ${isUrdu ? "flex-row-reverse" : ""}`}>
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#800000]/10 text-[#800000]">
+                          <Building2 className="h-5 w-5" />
+                        </span>
+                        <span>
+                          <span className={`block text-sm font-bold text-[#241816] ${isUrdu ? "urdu-text text-base" : ""}`}>{copy.management}</span>
+                          <span className={`block text-xs text-gray-500 ${isUrdu ? "urdu-text text-sm" : ""}`}>{copy.managementHint}</span>
+                        </span>
+                      </span>
+                      <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
+                        {copy.continue}
+                      </span>
                     </button>
 
-                    <div className="flex items-center justify-between pt-2 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => chooseRole("wholesale")}
+                      className={`group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md ${isUrdu ? "text-right" : "text-left"}`}
+                    >
+                      <span className={`flex items-center gap-3 ${isUrdu ? "flex-row-reverse" : ""}`}>
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#800000]/10 text-[#800000]">
+                          <Handshake className="h-5 w-5" />
+                        </span>
+                        <span>
+                          <span className={`block text-sm font-bold text-[#241816] ${isUrdu ? "urdu-text text-base" : ""}`}>{copy.wholesale}</span>
+                          <span className={`block text-xs text-gray-500 ${isUrdu ? "urdu-text text-sm" : ""}`}>{copy.partnerHint}</span>
+                        </span>
+                      </span>
+                      <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
+                        {copy.continue}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => chooseRole("retail")}
+                      className={`group flex items-center justify-between rounded-2xl border border-gray-100 bg-white/60 px-4 py-4 shadow-sm backdrop-blur-xl transition hover:-translate-y-0.5 hover:shadow-md ${isUrdu ? "text-right" : "text-left"}`}
+                    >
+                      <span className={`flex items-center gap-3 ${isUrdu ? "flex-row-reverse" : ""}`}>
+                        <span className="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-[#800000]/10 text-[#800000]">
+                          <Store className="h-5 w-5" />
+                        </span>
+                        <span>
+                          <span className={`block text-sm font-bold text-[#241816] ${isUrdu ? "urdu-text text-base" : ""}`}>{copy.retail}</span>
+                          <span className={`block text-xs text-gray-500 ${isUrdu ? "urdu-text text-sm" : ""}`}>{copy.partnerHint}</span>
+                        </span>
+                      </span>
+                      <span className="text-xs font-semibold text-[#800000] opacity-70 group-hover:opacity-100">
+                        {copy.continue}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Step 2: Role-specific form */}
+                  <div
+                    className={`transition-all duration-200 ${
+                      step === "form" ? "opacity-100 translate-y-0" : "pointer-events-none opacity-0 translate-y-2 h-0 overflow-hidden"
+                    }`}
+                  >
+                    <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
+                      <label className="block">
+                        <span className="sr-only">
+                          {selectedRole === "management" ? copy.username : copy.phone}
+                        </span>
+                        <div className="relative">
+                          <UserRound
+                            className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 ${
+                              isUrdu ? "right-3" : "left-3"
+                            }`}
+                          />
+                          <input
+                            name="identifier"
+                            type={selectedRole === "management" ? "text" : "tel"}
+                            value={form.identifier}
+                            onChange={handleChange}
+                            placeholder={selectedRole === "management" ? copy.username : copy.phone}
+                            autoComplete="username"
+                            inputMode={selectedRole === "management" ? undefined : "tel"}
+                            maxLength={selectedRole === "management" ? undefined : 11}
+                            dir={selectedRole === "management" && isUrdu ? "rtl" : "ltr"}
+                            className={`h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25 ${
+                              isUrdu ? "pr-10 pl-4 text-right" : "pl-10 pr-4 text-left"
+                            }`}
+                          />
+                        </div>
+                      </label>
+
+                      <label className="block">
+                        <span className="sr-only">{copy.password}</span>
+                        <div className="relative">
+                          <LockKeyhole
+                            className={`pointer-events-none absolute top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400 ${
+                              isUrdu ? "right-3" : "left-3"
+                            }`}
+                          />
+                          <input
+                            name="password"
+                            type={showPassword ? "text" : "password"}
+                            value={form.password}
+                            onChange={handleChange}
+                            placeholder={copy.password}
+                            autoComplete="current-password"
+                            dir="ltr"
+                            className={`h-12 w-full rounded-2xl border border-gray-200 bg-gray-50 text-sm text-gray-900 outline-none transition focus:border-[#800000] focus:ring-2 focus:ring-[#800000]/25 ${
+                              isUrdu ? "pr-10 pl-12 text-right" : "pl-10 pr-12 text-left"
+                            }`}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((value) => !value)}
+                            className={`absolute top-1/2 -translate-y-1/2 rounded-lg p-1 text-gray-400 transition hover:text-[#800000] focus:outline-none focus:ring-2 focus:ring-[#800000]/25 ${
+                              isUrdu ? "left-3" : "right-3"
+                            }`}
+                            aria-label={showPassword ? copy.hidePassword : copy.showPassword}
+                          >
+                            {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </button>
+                        </div>
+                      </label>
+
+                      <label className={`flex items-center justify-between gap-3 pt-1 text-sm text-gray-600 ${isUrdu ? "urdu-text" : ""}`}>
+                        <span className={`flex items-center gap-2 ${isUrdu ? "flex-row-reverse" : ""}`}>
+                          <input
+                            type="checkbox"
+                            checked={rememberMe}
+                            onChange={(e) => setRememberMe(e.target.checked)}
+                            className="h-4 w-4 rounded border-gray-300 text-[#800000] focus:ring-2 focus:ring-[#800000]/25"
+                          />
+                          {copy.rememberMe}
+                        </span>
+                      </label>
+
+                      {errorMessage ? (
+                        <p className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                          {errorMessage}
+                        </p>
+                      ) : null}
+
                       <button
-                        type="button"
-                        onClick={() => {
-                          setStep("select");
-                          setSelectedRole(null);
-                          setErrorMessage("");
-                          setForm({ identifier: "", password: "" });
-                        }}
-                        className="rounded-lg px-2 py-1 font-semibold text-gray-600 transition hover:text-gray-900 hover:underline focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
+                        type="submit"
+                        disabled={!form.identifier.trim() || !form.password.trim() || isSubmitting}
+                        className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#800000] to-[#5b0303] text-sm font-bold text-white shadow-lg shadow-[#800000]/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
                       >
-                        {copy.goBack}
+                        {isSubmitting ? copy.signingIn : copy.signIn}
                       </button>
-                      <a
-                        href="/signup"
-                        className="inline-flex items-center rounded-lg px-2 py-1 font-bold text-[#800000] transition hover:text-[#6f0000] hover:underline focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
-                      >
-                        {copy.createAccount}
-                      </a>
-                    </div>
-                  </form>
+
+                      <div className="flex items-center justify-between pt-2 text-sm">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setStep("select");
+                            setSelectedRole(null);
+                            setErrorMessage("");
+                            setForm({ identifier: "", password: "" });
+                          }}
+                          className="rounded-lg px-2 py-1 font-semibold text-gray-600 transition hover:text-gray-900 hover:underline focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
+                        >
+                          {copy.goBack}
+                        </button>
+                        <a
+                          href="/signup"
+                          className="inline-flex items-center rounded-lg px-2 py-1 font-bold text-[#800000] transition hover:text-[#6f0000] hover:underline focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
+                        >
+                          {copy.createAccount}
+                        </a>
+                      </div>
+                    </form>
+                  </div>
                 </div>
               </div>
             </div>
+
           </div>
         </div>
       </div>
