@@ -88,6 +88,27 @@ function clearStoredSession() {
   window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
 }
 
+function clearBrowserState() {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+
+  if (typeof document !== "undefined") {
+    document.cookie.split(";").forEach((cookie) => {
+      const cookieName = cookie.split("=")[0]?.trim();
+      if (!cookieName) {
+        return;
+      }
+
+      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/`;
+      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; domain=${window.location.hostname}`;
+    });
+  }
+}
+
 export function AuthProvider({ children }) {
   const pathname = usePathname();
   const [session, setSession] = useState(() => {
@@ -115,6 +136,7 @@ export function AuthProvider({ children }) {
   const [authLoading, setAuthLoading] = useState(true);
   const sessionRef = useRef(session);
   const rejectionHandledRef = useRef(false);
+  const logoutInProgressRef = useRef(false);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -128,6 +150,10 @@ export function AuthProvider({ children }) {
   }, []);
 
   const invalidateStaleSession = useCallback(async (reason, error = null) => {
+    if (logoutInProgressRef.current) {
+      return;
+    }
+
     console.error("Invalidating stale session:", reason, error);
     resetAuthState();
 
@@ -147,7 +173,7 @@ export function AuthProvider({ children }) {
   }, [resetAuthState]);
 
   const rejectSessionAccess = useCallback(async () => {
-    if (rejectionHandledRef.current) {
+    if (rejectionHandledRef.current || logoutInProgressRef.current) {
       return;
     }
 
@@ -402,18 +428,26 @@ export function AuthProvider({ children }) {
     let isActive = true;
 
     async function bootstrapAuth() {
+      if (logoutInProgressRef.current) {
+        return;
+      }
+
       setAuthLoading(true);
 
       try {
         const { data, error } = await supabase.auth.getSession();
 
         if (error) {
+          if (logoutInProgressRef.current) {
+            return;
+          }
+
           console.error("Auth bootstrap error:", error);
           await invalidateStaleSession("auth bootstrap returned error", error);
           return;
         }
 
-        if (!isActive) {
+        if (!isActive || logoutInProgressRef.current) {
           return;
         }
 
@@ -450,7 +484,7 @@ export function AuthProvider({ children }) {
             }
           );
 
-          if (!isActive) {
+          if (!isActive || logoutInProgressRef.current) {
             return;
           }
 
@@ -484,7 +518,7 @@ export function AuthProvider({ children }) {
           if (cachedSession) {
             const refreshedSession = await hydrateFreshSession(cachedSession);
 
-            if (!isActive) {
+            if (!isActive || logoutInProgressRef.current) {
               return;
             }
 
@@ -504,7 +538,7 @@ export function AuthProvider({ children }) {
           setAuthLoading(false);
         }
       } finally {
-        if (isActive) {
+        if (isActive && !logoutInProgressRef.current) {
           setAuthResolved(true);
           setAuthLoading(false);
         }
@@ -516,10 +550,14 @@ export function AuthProvider({ children }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
+      if (logoutInProgressRef.current && event !== "SIGNED_OUT") {
+        return;
+      }
+
       if (event === "SIGNED_OUT" || !nextSession) {
         rejectionHandledRef.current = false;
         resetAuthState();
-        clearStoredSession();
+        clearBrowserState();
         fetch("/api/logout", { method: "POST" }).catch(() => {});
         if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
           redirectIfNeeded("/login");
@@ -571,7 +609,7 @@ export function AuthProvider({ children }) {
           }
         );
 
-        if (!isActive) {
+        if (!isActive || logoutInProgressRef.current) {
           return;
         }
 
@@ -601,7 +639,7 @@ export function AuthProvider({ children }) {
   }, [hydrateFreshSession, invalidateStaleSession, rejectSessionAccess, resetAuthState]);
 
   useEffect(() => {
-    if (!authResolved || !session) {
+    if (logoutInProgressRef.current || !authResolved || !session) {
       return;
     }
 
@@ -621,20 +659,41 @@ export function AuthProvider({ children }) {
   }, [authResolved, pathname, rejectSessionAccess, session]);
 
   const logout = useCallback(async () => {
+    if (logoutInProgressRef.current) {
+      return;
+    }
+
+    logoutInProgressRef.current = true;
     setAuthLoading(true);
     rejectionHandledRef.current = false;
+    resetAuthState();
+    clearBrowserState();
+
     try {
       await supabase.auth.signOut();
     } catch (error) {
       console.error("Supabase signOut error:", error);
     } finally {
-      resetAuthState();
-      clearStoredSession();
-
       // Best-effort: clear server-side auth cookie so middleware can stop treating the user as signed in.
-      fetch("/api/logout", { method: "POST" }).catch(() => {});
+      await fetch("/api/logout", { method: "POST" }).catch(() => {});
 
-      redirectIfNeeded("/login");
+      if (typeof window !== "undefined") {
+        try {
+          const registrations = await navigator.serviceWorker?.getRegistrations?.();
+          await Promise.all((registrations ?? []).map((registration) => registration.unregister()));
+        } catch (serviceWorkerError) {
+          console.error("Service worker cleanup error:", serviceWorkerError);
+        }
+
+        try {
+          const cacheKeys = await caches.keys();
+          await Promise.all(cacheKeys.map((cacheKey) => caches.delete(cacheKey)));
+        } catch (cacheError) {
+          console.error("Cache cleanup error:", cacheError);
+        }
+
+        window.location.href = "/login";
+      }
     }
   }, [resetAuthState]);
 

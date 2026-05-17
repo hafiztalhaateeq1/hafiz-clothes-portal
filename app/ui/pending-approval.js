@@ -2,10 +2,27 @@
 
 import Image from "next/image";
 import { Clock3 } from "lucide-react";
+import { useState } from "react";
 import { useAuth } from "@/app/ui/auth-provider";
 
 export function PendingApproval() {
   const { logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Pending approval logout error:", error);
+      setIsLoggingOut(false);
+    }
+  }
 
   return (
     <section className="auth-surface pending-approval-shell">
@@ -48,9 +65,10 @@ export function PendingApproval() {
             <button
               type="button"
               className="pending-approval-signout"
-              onClick={() => logout()}
+              onClick={handleLogout}
+              disabled={isLoggingOut}
             >
-              Sign Out
+              {isLoggingOut ? "Signing out..." : "Sign Out"}
             </button>
           </div>
         </div>
