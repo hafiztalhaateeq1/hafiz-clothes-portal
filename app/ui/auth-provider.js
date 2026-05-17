@@ -13,7 +13,6 @@ import { supabase } from "@/lib/supabase";
 
 const STORAGE_KEY = "hafiz-auth-session";
 const SESSION_STORAGE_KEY = "hafiz-auth-session-temporary";
-const AUTH_TIMEOUT_MS = 5000;
 const PUBLIC_PATHS = new Set([
   "/login",
   "/signup",
@@ -50,13 +49,13 @@ function isPendingSession(sessionLike) {
   return status === "pending" || role.endsWith("_pending");
 }
 
-function clearBrowserStorage() {
+function clearStoredSession() {
   if (typeof window === "undefined") {
     return;
   }
 
-  window.localStorage.clear();
-  window.sessionStorage.clear();
+  window.localStorage.removeItem(STORAGE_KEY);
+  window.sessionStorage.removeItem(SESSION_STORAGE_KEY);
 }
 
 export function AuthProvider({ children }) {
@@ -93,7 +92,7 @@ export function AuthProvider({ children }) {
     setSession(null);
     setAuthResolved(true);
 
-    clearBrowserStorage();
+    clearStoredSession();
 
     try {
       await supabase.auth.signOut();
@@ -283,14 +282,6 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let isActive = true;
-    const timeoutId = window.setTimeout(() => {
-      if (!isActive) {
-        return;
-      }
-
-      console.warn("Auth bootstrap timed out. Falling back to resolved state.");
-      invalidateStaleSession("auth bootstrap timed out");
-    }, AUTH_TIMEOUT_MS);
 
     async function bootstrapAuth() {
       try {
@@ -380,7 +371,6 @@ export function AuthProvider({ children }) {
           setSession(null);
         }
       } finally {
-        window.clearTimeout(timeoutId);
         if (isActive) {
           setAuthResolved(true);
         }
@@ -396,7 +386,7 @@ export function AuthProvider({ children }) {
         setSession(null);
         setAuthResolved(true);
 
-        clearBrowserStorage();
+        clearStoredSession();
         fetch("/api/logout", { method: "POST" }).catch(() => {});
         if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
           redirectIfNeeded("/login");
@@ -461,7 +451,6 @@ export function AuthProvider({ children }) {
 
     return () => {
       isActive = false;
-      window.clearTimeout(timeoutId);
       subscription.unsubscribe();
     };
   }, [hydrateFreshSession, invalidateStaleSession]);
@@ -469,7 +458,7 @@ export function AuthProvider({ children }) {
   const logout = useCallback(async () => {
     setSession(null);
 
-    clearBrowserStorage();
+    clearStoredSession();
 
     try {
       await supabase.auth.signOut();

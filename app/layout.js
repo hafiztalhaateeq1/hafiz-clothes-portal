@@ -7,6 +7,7 @@ import {
 import localFont from "next/font/local";
 import { AuthProvider } from "@/app/ui/auth-provider";
 import { LanguageProvider } from "@/app/ui/language-provider";
+import { PortalBadgesProvider } from "@/app/ui/portal-badges-provider";
 import { PortalShell } from "@/app/ui/portal-shell";
 import { ServiceWorkerRegister } from "@/app/ui/sw-register";
 import "./globals.css";
@@ -71,9 +72,11 @@ export default function RootLayout({ children }) {
       <body className="min-h-full bg-[var(--portal-canvas)] text-[var(--portal-ink)] antialiased">
         <ServiceWorkerRegister />
         <AuthProvider>
-          <LanguageProvider>
-            <PortalShell>{children}</PortalShell>
-          </LanguageProvider>
+          <PortalBadgesProvider>
+            <LanguageProvider>
+              <PortalShell>{children}</PortalShell>
+            </LanguageProvider>
+          </PortalBadgesProvider>
         </AuthProvider>
       </body>
     </html>

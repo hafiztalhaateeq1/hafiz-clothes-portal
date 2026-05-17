@@ -13,11 +13,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/app/ui/auth-provider";
 import { useLanguage } from "@/app/ui/language-provider";
-import { supabase } from "@/lib/supabase";
-import {
-  fetchPendingCustomerRequests,
-  fetchPendingManagementRequests,
-} from "@/app/lib/management-requests";
+import { usePortalBadges } from "@/app/ui/portal-badges-provider";
 
 const navigationItems = [
   { key: "dashboard", href: "/", icon: LayoutDashboard },
@@ -32,69 +28,8 @@ export function PortalNavigation({ collapsed = false }) {
   const pathname = usePathname();
   const { session } = useAuth();
   const { t } = useLanguage();
-  const [pendingCustomerCount, setPendingCustomerCount] = useState(0);
-  const [pendingManagementCount, setPendingManagementCount] = useState(0);
+  const { activeCustomerCount, pendingManagementCount } = usePortalBadges();
   const canManagePortal = session?.role === "admin" || session?.role === "management";
-
-  useEffect(() => {
-    if (!session?.role) {
-      return undefined;
-    }
-
-    if (!canManagePortal) {
-      return undefined;
-    }
-
-    let isCurrent = true;
-
-    async function loadPendingCounts() {
-      const [customerResult, managementResult] = await Promise.all([
-        fetchPendingCustomerRequests(),
-        fetchPendingManagementRequests(),
-      ]);
-
-      if (!customerResult.success || customerResult.error) {
-        console.error(
-          "SUPABASE_FETCH_ERROR:",
-          customerResult.error?.message ?? customerResult.error,
-          customerResult.error
-        );
-      } else if (isCurrent) {
-        setPendingCustomerCount((customerResult.data ?? []).length);
-      }
-
-      if (!managementResult.success || managementResult.error) {
-        console.error(
-          "SUPABASE_FETCH_ERROR:",
-          managementResult.error?.message ?? managementResult.error,
-          managementResult.error
-        );
-        return;
-      }
-
-      if (isCurrent) {
-        setPendingManagementCount((managementResult.data ?? []).length);
-      }
-    }
-
-    loadPendingCounts();
-
-    const channel = supabase
-      .channel("management-request-badge")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "profiles" },
-        () => {
-          loadPendingCounts();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      isCurrent = false;
-      supabase.removeChannel(channel);
-    };
-  }, [canManagePortal, session?.role]);
 
   function getLabel(itemKey) {
     return t.nav[itemKey] ?? itemKey;
@@ -133,12 +68,12 @@ export function PortalNavigation({ collapsed = false }) {
             {!collapsed ? (
               <>
                 <span>{getLabel(item.key)}</span>
-                {item.key === "customers" && pendingCustomerCount > 0 ? (
+                {item.key === "customers" && activeCustomerCount > 0 ? (
                   <span
                     className="portal-nav-badge"
-                    aria-label={`${pendingCustomerCount} pending customer requests`}
+                    aria-label={`${activeCustomerCount} active customer records`}
                   >
-                    {pendingCustomerCount}
+                    {activeCustomerCount}
                   </span>
                 ) : null}
                 {item.key === "dashboard" && pendingManagementCount > 0 ? (
@@ -150,10 +85,10 @@ export function PortalNavigation({ collapsed = false }) {
                   </span>
                 ) : null}
               </>
-            ) : item.key === "customers" && pendingCustomerCount > 0 ? (
+            ) : item.key === "customers" && activeCustomerCount > 0 ? (
               <span
                 className="portal-nav-dot"
-                aria-label={`${pendingCustomerCount} pending customer requests`}
+                aria-label={`${activeCustomerCount} active customer records`}
               />
             ) : item.key === "dashboard" && pendingManagementCount > 0 ? (
               <span
