@@ -768,7 +768,11 @@ export function AuthProvider({ children }) {
       console.error("Supabase signOut error:", error);
     } finally {
       // Best-effort: clear server-side auth cookie so middleware can stop treating the user as signed in.
-      await fetch("/api/logout", { method: "POST" }).catch(() => {});
+      await fetch("/api/logout", {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+      }).catch(() => {});
 
       if (typeof window !== "undefined") {
         try {
