@@ -382,7 +382,7 @@ export function AuthProvider({ children }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
-      if (event === "SIGNED_OUT" || !nextSession) {
+      if (event === "SIGNED_OUT") {
         setSession(null);
         setAuthResolved(true);
 
@@ -391,6 +391,10 @@ export function AuthProvider({ children }) {
         if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
           redirectIfNeeded("/login");
         }
+        return;
+      }
+
+      if (!nextSession) {
         return;
       }
 

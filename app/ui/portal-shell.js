@@ -28,6 +28,22 @@ function isPendingUser(sessionLike) {
   return status === "pending" || role.endsWith("_pending");
 }
 
+function ShellStatusScreen({ languageClass, label }) {
+  return (
+    <div className={`portal-shell-root ${languageClass}`}>
+      <div className="min-h-screen flex items-center justify-center bg-[#FDF8F3]">
+        <div className="flex items-center gap-3 rounded-2xl border border-[#800000]/10 bg-white/80 px-6 py-5 text-sm font-semibold text-[#800000] shadow-lg">
+          <span
+            className="h-4 w-4 animate-spin rounded-full border-2 border-[#800000]/20 border-t-[#800000]"
+            aria-hidden="true"
+          />
+          <span>{label}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function PortalShell({ children }) {
   const pathname = usePathname();
   const { authResolved, isAuthenticated, logout, session } = useAuth();
@@ -120,39 +136,15 @@ export function PortalShell({ children }) {
   }
 
   if (!authResolved) {
-    return (
-      <div className={`portal-shell-root ${languageClass}`}>
-        <div className="min-h-screen flex items-center justify-center bg-[#FDF8F3]">
-          <div className="rounded-2xl border border-[#800000]/10 bg-white/80 px-6 py-5 text-sm font-semibold text-[#800000] shadow-lg">
-            Loading...
-          </div>
-        </div>
-      </div>
-    );
+    return <ShellStatusScreen languageClass={languageClass} label="Loading..." />;
   }
 
   if (!isAuthenticated || session?.role === "guest") {
-    return (
-      <div className={`portal-shell-root ${languageClass}`}>
-        <div className="min-h-screen flex items-center justify-center bg-[#FDF8F3]">
-          <div className="rounded-2xl border border-[#800000]/10 bg-white/80 px-6 py-5 text-sm font-semibold text-[#800000] shadow-lg">
-            Loading...
-          </div>
-        </div>
-      </div>
-    );
+    return <ShellStatusScreen languageClass={languageClass} label="Loading..." />;
   }
 
   if (isPendingUser(session)) {
-    return (
-      <div className={`portal-shell-root ${languageClass}`}>
-        <div className="min-h-screen flex items-center justify-center bg-[#FDF8F3]">
-          <div className="rounded-2xl border border-[#800000]/10 bg-white/80 px-6 py-5 text-sm font-semibold text-[#800000] shadow-lg">
-            Redirecting...
-          </div>
-        </div>
-      </div>
-    );
+    return <ShellStatusScreen languageClass={languageClass} label="Redirecting..." />;
   }
 
   function handleLogout() {

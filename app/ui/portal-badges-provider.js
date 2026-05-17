@@ -53,12 +53,12 @@ export function PortalBadgesProvider({ children }) {
 
   useEffect(() => {
     if (!canManagePortal) {
-      setPendingManagementCount(0);
-      setActiveCustomerCount(0);
       return undefined;
     }
 
-    refreshBadgeCounts();
+    Promise.resolve().then(() => {
+      refreshBadgeCounts();
+    });
 
     const channel = supabase
       .channel("portal-badge-sync")
@@ -85,12 +85,18 @@ export function PortalBadgesProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      activeCustomerCount,
-      pendingManagementCount,
+      activeCustomerCount: canManagePortal ? activeCustomerCount : 0,
+      pendingManagementCount: canManagePortal ? pendingManagementCount : 0,
       refreshBadgeCounts,
       syncPendingManagementCount,
     }),
-    [activeCustomerCount, pendingManagementCount, refreshBadgeCounts, syncPendingManagementCount]
+    [
+      activeCustomerCount,
+      canManagePortal,
+      pendingManagementCount,
+      refreshBadgeCounts,
+      syncPendingManagementCount,
+    ]
   );
 
   return <PortalBadgesContext.Provider value={value}>{children}</PortalBadgesContext.Provider>;

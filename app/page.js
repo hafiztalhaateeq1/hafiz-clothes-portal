@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/ui/auth-provider";
+import { usePortalBadges } from "@/app/ui/portal-badges-provider";
 import { useLanguage } from "@/app/ui/language-provider";
 import { translations } from "@/app/lib/translations";
 import { fetchPendingManagementRequests } from "@/app/lib/management-requests";
@@ -149,6 +150,7 @@ function logSupabaseError(scope, error) {
 
 export default function Home() {
   const { session } = useAuth();
+  const { syncPendingManagementCount } = usePortalBadges();
   const { t, language, hasMounted } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [metrics, setMetrics] = useState(initialMetrics);
@@ -652,6 +654,7 @@ export default function Home() {
               result.error
             );
             setPendingManagementRequests([]);
+            syncPendingManagementCount(0);
             setManagementRequestError("Unable to load management requests right now.");
             setHasLoadedManagementRequests(false);
             return;
@@ -659,6 +662,7 @@ export default function Home() {
 
           const nextRequests = Array.isArray(result.data) ? result.data : [];
           setPendingManagementRequests(nextRequests);
+          syncPendingManagementCount(nextRequests.length);
           setHasLoadedManagementRequests(true);
           setManagementRequestError(
             nextRequests.length === 0 ? "No pending requests found" : ""
@@ -671,6 +675,7 @@ export default function Home() {
           }
 
           setPendingManagementRequests([]);
+          syncPendingManagementCount(0);
           setManagementRequestError("Unable to load management requests right now.");
           setHasLoadedManagementRequests(false);
         })
@@ -702,7 +707,7 @@ export default function Home() {
       window.clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
-  }, [isAdmin, session]);
+  }, [isAdmin, session, syncPendingManagementCount]);
 
   async function handleManagementRequestAction(clientId, nextStatus, requestRole) {
     const normalizedClientId = String(clientId ?? "").trim();
@@ -739,9 +744,13 @@ export default function Home() {
       return;
     }
 
-    setPendingManagementRequests((currentRequests) =>
-      currentRequests.filter((request) => String(request.id ?? "") !== normalizedClientId)
-    );
+    setPendingManagementRequests((currentRequests) => {
+      const nextRequests = currentRequests.filter(
+        (request) => String(request.id ?? "") !== normalizedClientId
+      );
+      syncPendingManagementCount(nextRequests.length);
+      return nextRequests;
+    });
     setManagementActionId("");
   }
 
