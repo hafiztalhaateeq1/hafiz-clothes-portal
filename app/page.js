@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowUpRight,
   Banknote,
@@ -149,6 +150,7 @@ function logSupabaseError(scope, error) {
 }
 
 export default function Home() {
+  const router = useRouter();
   const { session } = useAuth();
   const { syncPendingManagementCount } = usePortalBadges();
   const { t, language, hasMounted } = useLanguage();
@@ -172,6 +174,9 @@ export default function Home() {
   const isAdmin = session?.role === "admin" || session?.role === "management";
   const isWholesale = session?.role === "wholesale";
   const isRetail = session?.role === "retail";
+  const isPendingUser =
+    String(session?.status ?? "").toLowerCase().trim() === "pending" ||
+    String(session?.role ?? "").toLowerCase().trim().endsWith("_pending");
   const dashboardText = translations.en.dashboard;
   const commonText = translations.en.common;
   const activeLanguage = mounted && hasMounted ? language : "en";
@@ -232,6 +237,12 @@ export default function Home() {
   }, [activeLanguage]);
 
   useEffect(() => {
+    if (isPendingUser) {
+      router.replace("/pending-approval");
+    }
+  }, [isPendingUser, router]);
+
+  useEffect(() => {
     const timer = window.setTimeout(() => {
       setMounted(true);
     }, 0);
@@ -240,7 +251,6 @@ export default function Home() {
       window.clearTimeout(timer);
     };
   }, []);
-
 
   useEffect(() => {
     let isMounted = true;

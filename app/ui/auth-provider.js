@@ -49,6 +49,22 @@ function isPendingSession(sessionLike) {
   return status === "pending" || role.endsWith("_pending");
 }
 
+async function fetchApprovalProfileByPhone(phone) {
+  const normalizedPhone = String(phone ?? "").replace(/[^\d]/g, "");
+
+  if (!normalizedPhone) {
+    return { data: null, error: null };
+  }
+
+  return supabase
+    .from("profiles")
+    .select("id, username, phone, role, status")
+    .eq("phone", normalizedPhone)
+    .in("role", ["wholesale_pending", "management_pending", "wholesale", "management"])
+    .limit(1)
+    .maybeSingle();
+}
+
 function clearStoredSession() {
   if (typeof window === "undefined") {
     return;
@@ -170,6 +186,35 @@ export function AuthProvider({ children }) {
       if (!data) {
         await invalidateStaleSession("client missing after session check");
         return null;
+      }
+
+      const approvalProfileResult = await fetchApprovalProfileByPhone(
+        data.phone ?? normalizedCachedSession.phone
+      );
+
+      if (approvalProfileResult.error) {
+        await invalidateStaleSession("approval profile fetch failed", approvalProfileResult.error);
+        return null;
+      }
+
+      const approvalProfile = approvalProfileResult.data ?? null;
+      const approvalStatus = String(approvalProfile?.status ?? "").toLowerCase().trim();
+      const approvalRole = String(approvalProfile?.role ?? "").toLowerCase().trim();
+
+      if (approvalStatus === "pending") {
+        return normalizeSession({
+          ...normalizedCachedSession,
+          customerId:
+            String(approvalProfile?.id ?? normalizedCachedSession.customerId ?? data.id ?? "").trim() ||
+            null,
+          displayName:
+            String(approvalProfile?.username ?? "").trim() ||
+            String(data.name ?? "").trim() ||
+            "User",
+          phone: String(approvalProfile?.phone ?? data.phone ?? "").trim() || null,
+          role: approvalRole || "wholesale_pending",
+          status: "pending",
+        });
       }
 
       const rawUserType = String(

@@ -49,6 +49,22 @@ function isPendingStatus(value) {
   return String(value ?? "").toLowerCase().trim() === "pending";
 }
 
+async function fetchApprovalProfileByPhone(phone) {
+  const normalizedPhone = String(phone ?? "").replace(/[^\d]/g, "");
+
+  if (!normalizedPhone) {
+    return { data: null, error: null };
+  }
+
+  return supabase
+    .from("profiles")
+    .select("id, username, phone, role, status")
+    .eq("phone", normalizedPhone)
+    .in("role", ["wholesale_pending", "management_pending", "wholesale", "management"])
+    .limit(1)
+    .maybeSingle();
+}
+
 function passwordMatches(client, password) {
   const passwordHash = String(client?.password_hash ?? "").trim();
   if (passwordHash) {
@@ -228,7 +244,23 @@ export async function POST(request) {
       .limit(1)
       .maybeSingle();
 
-    if (client && effectiveRole !== "admin") {
+    const approvalProfileResult =
+      effectiveRole !== "admin" ? await fetchApprovalProfileByPhone(phone) : { data: null, error: null };
+
+    if (approvalProfileResult.error) {
+      return NextResponse.json(
+        { error: "Unable to verify approval status right now." },
+        { status: 500 }
+      );
+    }
+
+    const approvalProfile = approvalProfileResult.data ?? null;
+    const approvalRole = normalizeUserRole(approvalProfile?.role);
+    const approvalStatus = String(approvalProfile?.status ?? "").toLowerCase().trim();
+
+    if (approvalStatus === "pending") {
+      effectiveRole = approvalRole || "wholesale_pending";
+    } else if (client && effectiveRole !== "admin") {
       const inferredBase = inferCustomerRole(client); // retail | wholesale
       const status = String(client?.status ?? "").toLowerCase().trim();
       const userType = String(client?.user_type ?? "").toLowerCase().trim();
@@ -292,10 +324,23 @@ export async function POST(request) {
 
     const session = {
       role: effectiveRole,
-      customerId: client?.id ? String(client.id) : null,
-      displayName: client?.name ?? user?.user_metadata?.full_name ?? "Customer",
+      customerId: approvalProfile?.id
+        ? String(approvalProfile.id)
+        : client?.id
+          ? String(client.id)
+          : null,
+      displayName:
+        approvalProfile?.username ??
+        client?.name ??
+        user?.user_metadata?.full_name ??
+        "Customer",
       phone,
-      status: isPendingStatus(client?.status) ? "pending" : "active",
+      status:
+        approvalStatus === "pending"
+          ? "pending"
+          : isPendingStatus(client?.status)
+            ? "pending"
+            : "active",
     };
 
     const response = NextResponse.json({
