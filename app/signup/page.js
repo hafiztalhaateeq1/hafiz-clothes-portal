@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import {
   Eye,
   EyeOff,
@@ -88,7 +88,7 @@ function validateConfirmPassword(password, confirm) {
 
 const SIGNUP_ROLES = new Set(["retail", "wholesale", "management"]);
 
-export default function SignupPage() {
+function SignupForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { primeSession } = useAuth();
@@ -687,5 +687,13 @@ export default function SignupPage() {
         </div>
       </div>
     </section>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div>Loading Signup...</div>}>
+      <SignupForm />
+    </Suspense>
   );
 }
