@@ -643,6 +643,10 @@ export function AuthProvider({ children }) {
       return;
     }
 
+    if (pathname === "/pending-approval") {
+      return;
+    }
+
     if (isRejectedSession(session)) {
       rejectSessionAccess();
       return;

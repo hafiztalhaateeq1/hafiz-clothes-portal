@@ -66,6 +66,10 @@ export function middleware(request: Request) {
     return NextResponse.next();
   }
 
+  if (pathname === "/pending-approval") {
+    return NextResponse.next();
+  }
+
   // Read session from httpOnly cookie set by /api/login.
   // @ts-expect-error Next.js adds `cookies` to the request object in middleware runtime
   const cookieValue = request.cookies?.get?.("hch_session")?.value as string | undefined;
@@ -97,7 +101,7 @@ export function middleware(request: Request) {
     return NextResponse.redirect(url);
   }
 
-  if (isAuthed && hasPendingSession && pathname !== "/pending-approval") {
+  if (isAuthed && hasPendingSession) {
     url.pathname = "/pending-approval";
     return NextResponse.redirect(url);
   }
