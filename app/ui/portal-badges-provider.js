@@ -12,9 +12,10 @@ export function PortalBadgesProvider({ children }) {
   const [pendingManagementCount, setPendingManagementCount] = useState(0);
   const [activeCustomerCount, setActiveCustomerCount] = useState(0);
   const canManagePortal = session?.role === "admin" || session?.role === "management";
+  const hasValidSession = Boolean(session && (session.customerId || session.role === "admin" || session.role === "management"));
 
   const refreshBadgeCounts = useCallback(async () => {
-    if (!authResolved || !session || !canManagePortal) {
+    if (!authResolved || !hasValidSession || !canManagePortal) {
       setPendingManagementCount(0);
       setActiveCustomerCount(0);
       return;
@@ -27,7 +28,7 @@ export function PortalBadgesProvider({ children }) {
       ]);
 
       if (!managementResult.success || managementResult.error) {
-        console.error(
+        console.warn(
           "SUPABASE_FETCH_ERROR:",
           managementResult.error?.message ?? managementResult.error,
           managementResult.error
@@ -38,7 +39,7 @@ export function PortalBadgesProvider({ children }) {
       }
 
       if (customersResult.error) {
-        console.error(
+        console.warn(
           "SUPABASE_FETCH_ERROR:",
           customersResult.error?.message ?? customersResult.error,
           customersResult.error
@@ -48,11 +49,11 @@ export function PortalBadgesProvider({ children }) {
         setActiveCustomerCount(customersResult.count ?? 0);
       }
     } catch (error) {
-      console.error("SUPABASE_FETCH_ERROR:", error?.message ?? error, error);
+      console.warn("SUPABASE_FETCH_ERROR:", error?.message ?? error, error);
       setPendingManagementCount(0);
       setActiveCustomerCount(0);
     }
-  }, [authResolved, canManagePortal, session]);
+  }, [authResolved, canManagePortal, hasValidSession]);
 
   const syncPendingManagementCount = useCallback((nextCount) => {
     const normalizedCount = Number(nextCount ?? 0);
@@ -60,7 +61,7 @@ export function PortalBadgesProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    if (!authResolved || !session || !canManagePortal) {
+    if (!authResolved || !hasValidSession || !canManagePortal) {
       return undefined;
     }
 
@@ -89,13 +90,13 @@ export function PortalBadgesProvider({ children }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [authResolved, canManagePortal, refreshBadgeCounts, session]);
+  }, [authResolved, canManagePortal, hasValidSession, refreshBadgeCounts]);
 
   const value = useMemo(
     () => ({
-      activeCustomerCount: authResolved && session && canManagePortal ? activeCustomerCount : 0,
+      activeCustomerCount: authResolved && hasValidSession && canManagePortal ? activeCustomerCount : 0,
       pendingManagementCount:
-        authResolved && session && canManagePortal ? pendingManagementCount : 0,
+        authResolved && hasValidSession && canManagePortal ? pendingManagementCount : 0,
       refreshBadgeCounts,
       syncPendingManagementCount,
     }),
@@ -103,9 +104,9 @@ export function PortalBadgesProvider({ children }) {
       activeCustomerCount,
       authResolved,
       canManagePortal,
+      hasValidSession,
       pendingManagementCount,
       refreshBadgeCounts,
-      session,
       syncPendingManagementCount,
     ]
   );

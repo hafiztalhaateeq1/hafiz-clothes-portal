@@ -5,7 +5,12 @@ const EXACT_MANAGEMENT_ROLE = "management_pending";
 const EXACT_WHOLESALE_ROLE = "wholesale_pending";
 const CUSTOMER_PENDING_ROLES = ["retail", "wholesale"];
 
-export async function fetchPendingManagementRequests() {
+function isAbortLikeError(error) {
+  const message = String(error?.message ?? "").toLowerCase();
+  return error?.name === "AbortError" || message.includes("aborted");
+}
+
+export async function fetchPendingManagementRequests(options = {}) {
   try {
     console.log("Pending Request Filters:", {
       table: "profiles",
@@ -13,11 +18,30 @@ export async function fetchPendingManagementRequests() {
       status: EXACT_PENDING_STATUS,
     });
 
-    const result = await supabase
+    let query = supabase
       .from("profiles")
       .select("id, username, phone, role, status")
       .eq("status", EXACT_PENDING_STATUS)
       .or(`role.eq.${EXACT_MANAGEMENT_ROLE},role.eq.${EXACT_WHOLESALE_ROLE}`);
+
+    const signal = options.signal;
+
+    if (signal && typeof query.abortSignal === "function") {
+      query = query.abortSignal(signal);
+    }
+
+    const result = await query;
+
+    if (isAbortLikeError(result.error)) {
+      console.log("Fetch aborted safely");
+      return {
+        aborted: true,
+        data: [],
+        error: null,
+        table: "profiles",
+        success: false,
+      };
+    }
 
     if (result.error) {
       console.error("FETCH_ERROR:", result.error);
@@ -47,6 +71,17 @@ export async function fetchPendingManagementRequests() {
       success: true,
     };
   } catch (error) {
+    if (isAbortLikeError(error)) {
+      console.log("Fetch aborted safely");
+      return {
+        aborted: true,
+        data: [],
+        error: null,
+        table: "profiles",
+        success: false,
+      };
+    }
+
     console.error("FETCH_ERROR:", error);
     console.error("SUPABASE_FETCH_ERROR:", error?.message ?? error, error);
 
@@ -59,13 +94,32 @@ export async function fetchPendingManagementRequests() {
   }
 }
 
-export async function fetchPendingCustomerRequests() {
+export async function fetchPendingCustomerRequests(options = {}) {
   try {
-    const result = await supabase
+    let query = supabase
       .from("profiles")
       .select("id, username, phone, role, status")
       .eq("status", EXACT_PENDING_STATUS)
       .in("role", CUSTOMER_PENDING_ROLES);
+
+    const signal = options.signal;
+
+    if (signal && typeof query.abortSignal === "function") {
+      query = query.abortSignal(signal);
+    }
+
+    const result = await query;
+
+    if (isAbortLikeError(result.error)) {
+      console.log("Fetch aborted safely");
+      return {
+        aborted: true,
+        data: [],
+        error: null,
+        table: "profiles",
+        success: false,
+      };
+    }
 
     if (result.error) {
       console.error("FETCH_ERROR:", result.error);
@@ -86,6 +140,17 @@ export async function fetchPendingCustomerRequests() {
       success: true,
     };
   } catch (error) {
+    if (isAbortLikeError(error)) {
+      console.log("Fetch aborted safely");
+      return {
+        aborted: true,
+        data: [],
+        error: null,
+        table: "profiles",
+        success: false,
+      };
+    }
+
     console.error("FETCH_ERROR:", error);
     console.error("SUPABASE_FETCH_ERROR:", error?.message ?? error, error);
 

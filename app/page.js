@@ -149,9 +149,22 @@ function logSupabaseError(scope, error) {
   );
 }
 
+function isAbortLikeError(error) {
+  const message = String(error?.message ?? "").toLowerCase();
+  return error?.name === "AbortError" || message.includes("aborted");
+}
+
+function withAbortSignal(query, signal) {
+  if (signal && typeof query?.abortSignal === "function") {
+    return query.abortSignal(signal);
+  }
+
+  return query;
+}
+
 export default function Home() {
   const router = useRouter();
-  const { session } = useAuth();
+  const { authResolved, session } = useAuth();
   const { syncPendingManagementCount } = usePortalBadges();
   const { t, language, hasMounted } = useLanguage();
   const [mounted, setMounted] = useState(false);
@@ -169,11 +182,15 @@ export default function Home() {
   const [managementActionId, setManagementActionId] = useState("");
   const [managementRequestError, setManagementRequestError] = useState("");
   const chartHostRef = useRef(null);
+  const lastDashboardFetchKeyRef = useRef("");
+  const syncPendingManagementCountRef = useRef(syncPendingManagementCount);
   const [chartReady] = useState(true);
 
   const isAdmin = session?.role === "admin" || session?.role === "management";
   const isWholesale = session?.role === "wholesale";
   const isRetail = session?.role === "retail";
+  const sessionRole = session?.role ?? "";
+  const sessionCustomerId = String(session?.customerId ?? "").trim();
   const isPendingUser =
     String(session?.status ?? "").toLowerCase().trim() === "pending" ||
     String(session?.role ?? "").toLowerCase().trim().endsWith("_pending");
@@ -237,6 +254,10 @@ export default function Home() {
   }, [activeLanguage]);
 
   useEffect(() => {
+    syncPendingManagementCountRef.current = syncPendingManagementCount;
+  }, [syncPendingManagementCount]);
+
+  useEffect(() => {
     if (isPendingUser) {
       router.replace("/pending-approval");
     }
@@ -253,13 +274,45 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    if (!authResolved || sessionRole) {
+      return undefined;
+    }
+
+    const timer = window.setTimeout(() => {
+      setIsLoading(false);
+    }, 0);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [authResolved, sessionRole]);
+
+  useEffect(() => {
+    if (!authResolved) {
+      return undefined;
+    }
+
+    if (!sessionRole) {
+      return undefined;
+    }
+
+    const fetchKey = `${sessionRole}:${sessionCustomerId}:${chartRange}`;
+    if (lastDashboardFetchKeyRef.current === fetchKey) {
+      return undefined;
+    }
+
+    lastDashboardFetchKeyRef.current = fetchKey;
+
     let isMounted = true;
+    const abortController = new AbortController();
+    let timeoutId = null;
+    let wasAborted = false;
 
     function fetchDashboardMetrics() {
       setIsLoading(true);
       setDashboardLoadError("");
 
-      const timeoutId = window.setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
         if (!isMounted) {
           return;
         }
@@ -283,7 +336,6 @@ export default function Home() {
           const ledgerDevLimit = process.env.NODE_ENV === "development" ? 100 : 5000;
           const rangeDays = chartRange === "30d" ? 30 : 7;
 
-          // Simple range keys: group by created_at.slice(0, 10) (YYYY-MM-DD).
           const endDate = new Date(now);
           const startDate = new Date(now);
           startDate.setDate(now.getDate() - (rangeDays - 1));
@@ -293,41 +345,115 @@ export default function Home() {
           const startDateIso = `${startKey}T00:00:00.000Z`;
           const endDateIso = `${endKey}T23:59:59.999Z`;
 
-          const productsCountPromise = supabase
-            .from("products")
-            .select("id", { count: "exact", head: true });
+          const productsCountPromise = withAbortSignal(
+            supabase.from("products").select("id", { count: "exact", head: true }),
+            abortController.signal
+          );
 
           if (isAdmin) {
-            const productsInventoryPromise = supabase
-              .from("products")
-              .select("id, name, stock_meters, purchase_price");
+            const productsInventoryPromise = withAbortSignal(
+              supabase
+                .from("products")
+                .select("id, name, stock_meters, purchase_price"),
+              abortController.signal
+            );
 
-            const ledgerProfitPromise = supabase
-              .from("ledger")
-              .select("created_at, total_bill, total_price, quantity_meters, products(purchase_price)")
-              .gte("created_at", startOfMonth.toISOString())
-              .order("created_at", { ascending: false })
-              .limit(ledgerDevLimit);
+            const ledgerProfitPromise = withAbortSignal(
+              supabase
+                .from("ledger")
+                .select(
+                  "created_at, total_bill, total_price, quantity_meters, products(purchase_price)"
+                )
+                .gte("created_at", startOfMonth.toISOString())
+                .order("created_at", { ascending: false })
+                .limit(ledgerDevLimit),
+              abortController.signal
+            );
 
             const expensesPromise = (async () => {
-              // Use created_at for expense date logic on dashboard to avoid schema mismatch.
-              let result = await supabase
-                .from("expenses")
-                .select("amount, created_at")
-                .order("created_at", { ascending: false })
-                .limit(1000);
+              let result = await withAbortSignal(
+                supabase
+                  .from("expenses")
+                  .select("amount, created_at")
+                  .order("created_at", { ascending: false })
+                  .limit(1000),
+                abortController.signal
+              );
 
-              if (result.error) {
+              if (result.error && !isAbortLikeError(result.error)) {
                 logSupabaseError("SUPABASE EXPENSES ERROR:", result.error);
-                // If ordering column doesn't exist, retry without order.
-                result = await supabase.from("expenses").select("amount, created_at").limit(1000);
-                if (result.error) {
-                  logSupabaseError("SUPABASE EXPENSES ERROR (fallback no order):", result.error);
+                result = await withAbortSignal(
+                  supabase.from("expenses").select("amount, created_at").limit(1000),
+                  abortController.signal
+                );
+                if (result.error && !isAbortLikeError(result.error)) {
+                  logSupabaseError(
+                    "SUPABASE EXPENSES ERROR (fallback no order):",
+                    result.error
+                  );
                 }
               }
 
               return result;
             })();
+
+            const results = await Promise.all([
+              withAbortSignal(
+                supabase.from("clients").select("id", { count: "exact", head: true }),
+                abortController.signal
+              ),
+              productsCountPromise,
+              productsInventoryPromise,
+              withAbortSignal(
+                supabase
+                  .from("ledger")
+                  .select("total_bill, total_price, amount_paid")
+                  .order("created_at", { ascending: false })
+                  .limit(ledgerDevLimit),
+                abortController.signal
+              ),
+              withAbortSignal(
+                supabase
+                  .from("ledger")
+                  .select(
+                    "id, created_at, total_bill, total_price, amount_paid, balance, clients(name), products(name), quantity_meters"
+                  )
+                  .order("created_at", { ascending: false })
+                  .order("id", { ascending: false })
+                  .limit(5),
+                abortController.signal
+              ),
+              withAbortSignal(
+                supabase
+                  .from("ledger")
+                  .select("created_at, quantity_meters")
+                  .gte("created_at", startDateIso)
+                  .lte("created_at", endDateIso)
+                  .order("created_at", { ascending: false })
+                  .limit(ledgerDevLimit),
+                abortController.signal
+              ),
+              withAbortSignal(
+                supabase
+                  .from("ledger")
+                  .select("quantity_meters")
+                  .gte("created_at", startOfMonth.toISOString())
+                  .order("created_at", { ascending: false })
+                  .limit(ledgerDevLimit),
+                abortController.signal
+              ),
+              ledgerProfitPromise,
+              expensesPromise,
+            ]);
+
+            if (
+              abortController.signal.aborted ||
+              results.some((result) => isAbortLikeError(result?.error))
+            ) {
+              wasAborted = true;
+              console.log("Fetch aborted safely");
+              return;
+            }
 
             const [
               clientsResult,
@@ -339,39 +465,7 @@ export default function Home() {
               ledgerMonthResult,
               ledgerProfitResult,
               expensesResult,
-            ] = await Promise.all([
-              supabase.from("clients").select("id", { count: "exact", head: true }),
-              productsCountPromise,
-              productsInventoryPromise,
-              supabase
-                .from("ledger")
-                .select("total_bill, total_price, amount_paid")
-                .order("created_at", { ascending: false })
-                .limit(ledgerDevLimit),
-              supabase
-                .from("ledger")
-                .select(
-                  "id, created_at, total_bill, total_price, amount_paid, balance, clients(name), products(name), quantity_meters"
-                )
-                .order("created_at", { ascending: false })
-                .order("id", { ascending: false })
-                .limit(5),
-              supabase
-                .from("ledger")
-                .select("created_at, quantity_meters")
-                .gte("created_at", startDateIso)
-                .lte("created_at", endDateIso)
-                .order("created_at", { ascending: false })
-                .limit(ledgerDevLimit),
-              supabase
-                .from("ledger")
-                .select("quantity_meters")
-                .gte("created_at", startOfMonth.toISOString())
-                .order("created_at", { ascending: false })
-                .limit(ledgerDevLimit),
-              ledgerProfitPromise,
-              expensesPromise,
-            ]);
+            ] = results;
 
             console.log("Data Received:", {
               clients: clientsResult,
@@ -400,8 +494,10 @@ export default function Home() {
                 .sort((a, b) => a.stockMeters - b.stockMeters)
                 .slice(0, 3);
             } else {
-              // If purchase_price or stock_meters columns are missing, ignore inventory stats.
-              console.warn("Dashboard inventory fetch error:", productsInventoryResult.error.message || productsInventoryResult.error);
+              console.warn(
+                "Dashboard inventory fetch error:",
+                productsInventoryResult.error.message || productsInventoryResult.error
+              );
               nextLowStockProducts = [];
             }
 
@@ -415,7 +511,10 @@ export default function Home() {
                 return sum + total;
               }, 0);
 
-              nextMetrics.totalPaidAll = ledgerRows.reduce((sum, entry) => sum + getAmountPaid(entry), 0);
+              nextMetrics.totalPaidAll = ledgerRows.reduce(
+                (sum, entry) => sum + getAmountPaid(entry),
+                0
+              );
 
               nextMetrics.totalRecovery = ledgerRows.reduce((sum, entry) => {
                 const total = toNumber(entry.total_bill ?? entry.total_price);
@@ -486,7 +585,10 @@ export default function Home() {
             }
 
             if (!ledgerRangeResult.error) {
-              console.log("Current Date Range:", { startDate: startDateIso, endDate: endDateIso });
+              console.log("Current Date Range:", {
+                startDate: startDateIso,
+                endDate: endDateIso,
+              });
               console.log("Fetched Ledger:", ledgerRangeResult.data ?? []);
 
               const buckets = new Map();
@@ -535,20 +637,33 @@ export default function Home() {
             } else {
               logSupabaseError("SUPABASE LEDGER RANGE ERROR:", ledgerRangeResult.error);
             }
-          }
-          else {
-            const [productsResult, ledgerResult] = await Promise.all([
+          } else {
+            const results = await Promise.all([
               productsCountPromise,
-              session?.customerId
-                  ? supabase
+              sessionCustomerId
+                ? withAbortSignal(
+                    supabase
                       .from("ledger")
                       .select(
                         "id, created_at, total_bill, total_price, amount_paid, balance, quantity_meters, products!inner(name, price_per_meter, wholesale_price)"
                       )
-                      .eq("client_id", session.customerId)
-                      .order("id", { ascending: false })
+                      .eq("client_id", sessionCustomerId)
+                      .order("id", { ascending: false }),
+                    abortController.signal
+                  )
                 : Promise.resolve({ data: [], error: null }),
             ]);
+
+            if (
+              abortController.signal.aborted ||
+              results.some((result) => isAbortLikeError(result?.error))
+            ) {
+              wasAborted = true;
+              console.log("Fetch aborted safely");
+              return;
+            }
+
+            const [productsResult, ledgerResult] = results;
 
             console.log("Data Received:", ledgerResult?.data ?? null);
 
@@ -577,7 +692,7 @@ export default function Home() {
           }
         })
         .then(() => {
-          if (!isMounted) {
+          if (!isMounted || wasAborted) {
             return;
           }
 
@@ -592,6 +707,12 @@ export default function Home() {
           }
         })
         .catch((error) => {
+          if (isAbortLikeError(error)) {
+            wasAborted = true;
+            console.log("Fetch aborted safely");
+            return;
+          }
+
           console.error("Dashboard fetch error:", error);
           if (!isMounted) {
             return;
@@ -613,15 +734,15 @@ export default function Home() {
 
     return () => {
       isMounted = false;
+      abortController.abort();
+      if (timeoutId) {
+        window.clearTimeout(timeoutId);
+      }
     };
-  }, [isAdmin, session?.customerId, chartRange]);
+  }, [authResolved, chartRange, isAdmin, sessionCustomerId, sessionRole]);
 
   useEffect(() => {
-    if (!session) {
-      return undefined;
-    }
-
-    if (!session?.role) {
+    if (!authResolved || !sessionRole) {
       return undefined;
     }
 
@@ -630,6 +751,7 @@ export default function Home() {
     }
 
     let isCurrent = true;
+    const abortController = new AbortController();
     let loadingTimedOut = false;
     const timeoutId = window.setTimeout(() => {
       if (!isCurrent || loadingTimedOut) {
@@ -642,18 +764,18 @@ export default function Home() {
     }, 7000);
 
     function loadPendingManagementRequests() {
-      if (!session) {
-        setIsLoadingManagementRequests(false);
-        return Promise.resolve();
-      }
-
       setIsLoadingManagementRequests(true);
       setManagementRequestError("");
       setHasLoadedManagementRequests(false);
 
-      return fetchPendingManagementRequests()
+      return fetchPendingManagementRequests({ signal: abortController.signal })
         .then((result) => {
           if (!isCurrent) {
+            return;
+          }
+
+          if (result?.aborted) {
+            console.log("Fetch aborted safely");
             return;
           }
 
@@ -664,7 +786,7 @@ export default function Home() {
               result.error
             );
             setPendingManagementRequests([]);
-            syncPendingManagementCount(0);
+            syncPendingManagementCountRef.current(0);
             setManagementRequestError("Unable to load management requests right now.");
             setHasLoadedManagementRequests(false);
             return;
@@ -672,20 +794,25 @@ export default function Home() {
 
           const nextRequests = Array.isArray(result.data) ? result.data : [];
           setPendingManagementRequests(nextRequests);
-          syncPendingManagementCount(nextRequests.length);
+          syncPendingManagementCountRef.current(nextRequests.length);
           setHasLoadedManagementRequests(true);
           setManagementRequestError(
             nextRequests.length === 0 ? "No pending requests found" : ""
           );
         })
         .catch((error) => {
+          if (isAbortLikeError(error)) {
+            console.log("Fetch aborted safely");
+            return;
+          }
+
           console.error("SUPABASE_FETCH_ERROR:", error?.message ?? error, error);
           if (!isCurrent) {
             return;
           }
 
           setPendingManagementRequests([]);
-          syncPendingManagementCount(0);
+          syncPendingManagementCountRef.current(0);
           setManagementRequestError("Unable to load management requests right now.");
           setHasLoadedManagementRequests(false);
         })
@@ -714,10 +841,11 @@ export default function Home() {
 
     return () => {
       isCurrent = false;
+      abortController.abort();
       window.clearTimeout(timeoutId);
       supabase.removeChannel(channel);
     };
-  }, [isAdmin, session, syncPendingManagementCount]);
+  }, [authResolved, isAdmin, sessionRole]);
 
   async function handleManagementRequestAction(clientId, nextStatus, requestRole) {
     const normalizedClientId = String(clientId ?? "").trim();

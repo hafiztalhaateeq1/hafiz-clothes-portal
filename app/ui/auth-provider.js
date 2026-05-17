@@ -56,6 +56,35 @@ function isRejectedSession(sessionLike) {
   return status === "rejected" || role.endsWith("_rejected");
 }
 
+function buildFallbackSession(authSession, sessionLike = null) {
+  const source = authSession?.user ?? {};
+  const fallbackRole = String(
+    sessionLike?.role ??
+      source.user_metadata?.role ??
+      source.app_metadata?.role ??
+      "retail"
+  )
+    .toLowerCase()
+    .trim();
+
+  return normalizeSession({
+    customerId: String(sessionLike?.customerId ?? source.id ?? "").trim() || null,
+    displayName:
+      String(
+        sessionLike?.displayName ??
+          source.user_metadata?.username ??
+          source.user_metadata?.full_name ??
+          source.email ??
+          "User"
+      ).trim() || "User",
+    phone:
+      String(sessionLike?.phone ?? source.user_metadata?.phone ?? source.phone ?? "").trim() ||
+      null,
+    role: fallbackRole || "retail",
+    status: String(sessionLike?.status ?? "active").toLowerCase().trim() || "active",
+  });
+}
+
 async function fetchApprovalProfileByPhone(phone) {
   const normalizedPhone = String(phone ?? "").replace(/[^\d]/g, "");
 
@@ -197,11 +226,11 @@ export function AuthProvider({ children }) {
     redirectIfNeeded("/login");
   }, [resetAuthState]);
 
-  const hydrateFreshSession = useCallback(async (cachedSession) => {
+  const hydrateFreshSession = useCallback(async (cachedSession, authSession = null) => {
     const normalizedCachedSession = normalizeSession(cachedSession);
 
     if (!normalizedCachedSession) {
-      return null;
+      return authSession ? buildFallbackSession(authSession, cachedSession) : null;
     }
 
     const role = String(normalizedCachedSession.role ?? "").toLowerCase().trim();
@@ -220,13 +249,12 @@ export function AuthProvider({ children }) {
           .maybeSingle();
 
         if (error) {
-          await invalidateStaleSession("profiles fetch failed", error);
-          return null;
+          console.warn("Auth profile fetch warning:", error);
+          return buildFallbackSession(authSession, normalizedCachedSession);
         }
 
         if (!data) {
-          await invalidateStaleSession("profile missing after session check");
-          return null;
+          return buildFallbackSession(authSession, normalizedCachedSession);
         }
 
         return normalizeSession({
@@ -246,13 +274,12 @@ export function AuthProvider({ children }) {
         .maybeSingle();
 
       if (error) {
-        await invalidateStaleSession("clients fetch failed", error);
-        return null;
+        console.warn("Auth client fetch warning:", error);
+        return buildFallbackSession(authSession, normalizedCachedSession);
       }
 
       if (!data) {
-        await invalidateStaleSession("client missing after session check");
-        return null;
+        return buildFallbackSession(authSession, normalizedCachedSession);
       }
 
       const approvalProfileResult = await fetchApprovalProfileByPhone(
@@ -260,8 +287,8 @@ export function AuthProvider({ children }) {
       );
 
       if (approvalProfileResult.error) {
-        await invalidateStaleSession("approval profile fetch failed", approvalProfileResult.error);
-        return null;
+        console.warn("Auth approval profile fetch warning:", approvalProfileResult.error);
+        return buildFallbackSession(authSession, normalizedCachedSession);
       }
 
       const approvalProfile = approvalProfileResult.data ?? null;
@@ -325,10 +352,10 @@ export function AuthProvider({ children }) {
         status: normalizedStatus || null,
       });
     } catch (error) {
-      await invalidateStaleSession("fresh profile hydration failed", error);
-      return null;
+      console.warn("Fresh profile hydration warning:", error);
+      return buildFallbackSession(authSession, normalizedCachedSession);
     }
-  }, [invalidateStaleSession]);
+  }, []);
 
   const login = useCallback(async (credentials) => {
     const rememberMe = Boolean(credentials?.rememberMe);
@@ -444,8 +471,8 @@ export function AuthProvider({ children }) {
             return;
           }
 
-          console.error("Auth bootstrap error:", error);
-          await invalidateStaleSession("auth bootstrap returned error", error);
+          console.warn("Auth bootstrap error:", error);
+          setSession(null);
           return;
         }
 
@@ -464,8 +491,8 @@ export function AuthProvider({ children }) {
           try {
             cachedSession = JSON.parse(savedSession);
           } catch (parseError) {
-            await invalidateStaleSession("cached session parse failed", parseError);
-            return;
+            console.warn("Cached session parse warning:", parseError);
+            cachedSession = null;
           }
         }
 
@@ -483,7 +510,8 @@ export function AuthProvider({ children }) {
                 data.session.user?.user_metadata?.role ??
                 data.session.user?.app_metadata?.role ??
                 "guest",
-            }
+            },
+            data.session
           );
 
           if (!isActive || logoutInProgressRef.current) {
@@ -497,7 +525,6 @@ export function AuthProvider({ children }) {
             }
 
             setSession(refreshedSession);
-            setAuthLoading(false);
             if (typeof window !== "undefined") {
               if (window.localStorage.getItem(STORAGE_KEY)) {
                 window.localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshedSession));
@@ -515,10 +542,12 @@ export function AuthProvider({ children }) {
                 redirectIfNeeded("/pending-approval");
               }
             }
+          } else {
+            setSession(buildFallbackSession(data.session, cachedSession));
           }
         } else {
           if (cachedSession) {
-            const refreshedSession = await hydrateFreshSession(cachedSession);
+            const refreshedSession = await hydrateFreshSession(cachedSession, null);
 
             if (!isActive || logoutInProgressRef.current) {
               return;
@@ -531,17 +560,22 @@ export function AuthProvider({ children }) {
               }
 
               setSession(refreshedSession);
-              setAuthLoading(false);
+            } else {
+              setSession(null);
             }
             return;
           }
 
           setSession(null);
-          setAuthLoading(false);
+        }
+      } catch (error) {
+        console.warn("Auth bootstrap catch warning:", error);
+        if (!logoutInProgressRef.current) {
+          setSession((currentSession) => currentSession ?? null);
         }
       } finally {
         bootstrapInProgressRef.current = false;
-        if (isActive && !logoutInProgressRef.current) {
+        if (isActive) {
           setAuthResolved(true);
           setAuthLoading(false);
         }
@@ -595,8 +629,8 @@ export function AuthProvider({ children }) {
           try {
             parsedSession = JSON.parse(savedSession);
           } catch (parseError) {
-            await invalidateStaleSession("auth state cached session parse failed", parseError);
-            return;
+            console.warn("Auth state cached session parse warning:", parseError);
+            parsedSession = null;
           }
         }
 
@@ -613,7 +647,8 @@ export function AuthProvider({ children }) {
               nextSession.user?.user_metadata?.role ??
               nextSession.user?.app_metadata?.role ??
               "guest",
-          }
+          },
+          nextSession
         );
 
         if (!isActive || logoutInProgressRef.current) {

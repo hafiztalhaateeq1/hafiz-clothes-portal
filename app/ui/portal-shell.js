@@ -154,6 +154,10 @@ export function PortalShell({ children }) {
     return <ShellStatusScreen languageClass={languageClass} label="Redirecting..." />;
   }
 
+  if (!session) {
+    return <ShellStatusScreen languageClass={languageClass} label="Redirecting..." />;
+  }
+
   if (isPendingUser(session)) {
     return <ShellStatusScreen languageClass={languageClass} label="Redirecting..." />;
   }
