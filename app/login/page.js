@@ -29,6 +29,12 @@ function isPendingUser(sessionLike) {
   return status === "pending" || role.endsWith("_pending");
 }
 
+function isRejectedUser(sessionLike) {
+  const role = String(sessionLike?.role ?? "").toLowerCase().trim();
+  const status = String(sessionLike?.status ?? "").toLowerCase().trim();
+  return status === "rejected" || role.endsWith("_rejected");
+}
+
 export default function LoginPage() {
   const router = useRouter();
   const { hasMounted, isAuthenticated, login, session } = useAuth();
@@ -158,6 +164,10 @@ export default function LoginPage() {
         (await fetchProfileStatus(session, selectedRole, form.identifier)) ?? session;
 
       console.log("Sign-in session:", profileSession);
+
+      if (isRejectedUser(profileSession)) {
+        throw new Error("Your account application has been rejected by the admin.");
+      }
 
       const nextPath = isPendingUser(profileSession)
         ? "/pending-approval"

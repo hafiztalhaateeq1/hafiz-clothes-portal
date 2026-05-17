@@ -9,6 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { usePathname } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
 const STORAGE_KEY = "hafiz-auth-session";
@@ -49,6 +50,12 @@ function isPendingSession(sessionLike) {
   return status === "pending" || role.endsWith("_pending");
 }
 
+function isRejectedSession(sessionLike) {
+  const role = String(sessionLike?.role ?? "").toLowerCase().trim();
+  const status = String(sessionLike?.status ?? "").toLowerCase().trim();
+  return status === "rejected" || role.endsWith("_rejected");
+}
+
 async function fetchApprovalProfileByPhone(phone) {
   const normalizedPhone = String(phone ?? "").replace(/[^\d]/g, "");
 
@@ -60,7 +67,14 @@ async function fetchApprovalProfileByPhone(phone) {
     .from("profiles")
     .select("id, username, phone, role, status")
     .eq("phone", normalizedPhone)
-    .in("role", ["wholesale_pending", "management_pending", "wholesale", "management"])
+    .in("role", [
+      "wholesale_pending",
+      "management_pending",
+      "wholesale_rejected",
+      "management_rejected",
+      "wholesale",
+      "management",
+    ])
     .limit(1)
     .maybeSingle();
 }
@@ -75,6 +89,7 @@ function clearStoredSession() {
 }
 
 export function AuthProvider({ children }) {
+  const pathname = usePathname();
   const [session, setSession] = useState(() => {
     if (typeof window === "undefined") {
       return null;
@@ -99,6 +114,7 @@ export function AuthProvider({ children }) {
   const [authResolved, setAuthResolved] = useState(false);
   const [authLoading, setAuthLoading] = useState(true);
   const sessionRef = useRef(session);
+  const rejectionHandledRef = useRef(false);
 
   useEffect(() => {
     sessionRef.current = session;
@@ -128,6 +144,30 @@ export function AuthProvider({ children }) {
     if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
       redirectIfNeeded("/login");
     }
+  }, [resetAuthState]);
+
+  const rejectSessionAccess = useCallback(async () => {
+    if (rejectionHandledRef.current) {
+      return;
+    }
+
+    rejectionHandledRef.current = true;
+    resetAuthState();
+    clearStoredSession();
+
+    try {
+      await supabase.auth.signOut();
+    } catch (signOutError) {
+      console.error("Supabase signOut error:", signOutError);
+    }
+
+    fetch("/api/logout", { method: "POST" }).catch(() => {});
+
+    if (typeof window !== "undefined") {
+      alert("Your account application has been rejected by the admin.");
+    }
+
+    redirectIfNeeded("/login");
   }, [resetAuthState]);
 
   const hydrateFreshSession = useCallback(async (cachedSession) => {
@@ -217,6 +257,22 @@ export function AuthProvider({ children }) {
         });
       }
 
+      if (approvalStatus === "rejected") {
+        return normalizeSession({
+          ...normalizedCachedSession,
+          customerId:
+            String(approvalProfile?.id ?? normalizedCachedSession.customerId ?? data.id ?? "").trim() ||
+            null,
+          displayName:
+            String(approvalProfile?.username ?? "").trim() ||
+            String(data.name ?? "").trim() ||
+            "User",
+          phone: String(approvalProfile?.phone ?? data.phone ?? "").trim() || null,
+          role: approvalRole || "wholesale_rejected",
+          status: "rejected",
+        });
+      }
+
       const rawUserType = String(
         data.user_type ?? data.trust_level ?? data.account_type ?? data.customer_type ?? ""
       )
@@ -228,6 +284,8 @@ export function AuthProvider({ children }) {
       const nextRole = isWholesale
         ? normalizedStatus === "pending"
           ? "wholesale_pending"
+          : normalizedStatus === "rejected"
+            ? "wholesale_rejected"
           : "wholesale"
         : "retail";
 
@@ -245,7 +303,7 @@ export function AuthProvider({ children }) {
     }
   }, [invalidateStaleSession]);
 
-  async function login(credentials) {
+  const login = useCallback(async (credentials) => {
     const rememberMe = Boolean(credentials?.rememberMe);
     const payload = { ...credentials, rememberMe };
 
@@ -275,6 +333,12 @@ export function AuthProvider({ children }) {
     }
 
     const normalizedSession = normalizeSession(result.session);
+
+    if (isRejectedSession(normalizedSession)) {
+      await rejectSessionAccess();
+      throw new Error("Your account application has been rejected by the admin.");
+    }
+
     setSession(normalizedSession);
 
     if (typeof window !== "undefined") {
@@ -293,8 +357,9 @@ export function AuthProvider({ children }) {
       }
     }
 
+    rejectionHandledRef.current = false;
     return normalizedSession;
-  }
+  }, [rejectSessionAccess]);
 
   const primeSession = useCallback((sessionLike, options = {}) => {
     const rememberMe = Boolean(options?.rememberMe);
@@ -390,6 +455,11 @@ export function AuthProvider({ children }) {
           }
 
           if (refreshedSession) {
+            if (isRejectedSession(refreshedSession)) {
+              await rejectSessionAccess();
+              return;
+            }
+
             setSession(refreshedSession);
             setAuthLoading(false);
             if (typeof window !== "undefined") {
@@ -419,6 +489,11 @@ export function AuthProvider({ children }) {
             }
 
             if (refreshedSession) {
+              if (isRejectedSession(refreshedSession)) {
+                await rejectSessionAccess();
+                return;
+              }
+
               setSession(refreshedSession);
               setAuthLoading(false);
             }
@@ -442,6 +517,7 @@ export function AuthProvider({ children }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
       if (event === "SIGNED_OUT" || !nextSession) {
+        rejectionHandledRef.current = false;
         resetAuthState();
         clearStoredSession();
         fetch("/api/logout", { method: "POST" }).catch(() => {});
@@ -500,6 +576,11 @@ export function AuthProvider({ children }) {
         }
 
         if (refreshedSession) {
+          if (isRejectedSession(refreshedSession)) {
+            await rejectSessionAccess();
+            return;
+          }
+
           setSession(refreshedSession);
           if (
             isPendingSession(refreshedSession) &&
@@ -517,10 +598,31 @@ export function AuthProvider({ children }) {
       isActive = false;
       subscription.unsubscribe();
     };
-  }, [hydrateFreshSession, invalidateStaleSession, resetAuthState]);
+  }, [hydrateFreshSession, invalidateStaleSession, rejectSessionAccess, resetAuthState]);
+
+  useEffect(() => {
+    if (!authResolved || !session) {
+      return;
+    }
+
+    if (isRejectedSession(session)) {
+      rejectSessionAccess();
+      return;
+    }
+
+    if (
+      isPendingSession(session) &&
+      pathname &&
+      pathname !== "/pending-approval" &&
+      !isPublicPath(pathname)
+    ) {
+      redirectIfNeeded("/pending-approval");
+    }
+  }, [authResolved, pathname, rejectSessionAccess, session]);
 
   const logout = useCallback(async () => {
     setAuthLoading(true);
+    rejectionHandledRef.current = false;
     try {
       await supabase.auth.signOut();
     } catch (error) {
@@ -547,7 +649,7 @@ export function AuthProvider({ children }) {
       primeSession,
       session,
     }),
-    [authLoading, authResolved, logout, primeSession, session]
+    [authLoading, authResolved, login, logout, primeSession, session]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

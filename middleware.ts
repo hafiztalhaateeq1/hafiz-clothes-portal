@@ -23,6 +23,18 @@ function isPendingSession(session?: { role?: string | null; status?: string | nu
   return status === "pending" || role.endsWith("_pending");
 }
 
+function isRejectedSession(session?: { role?: string | null; status?: string | null } | null) {
+  const role = String(session?.role ?? "").toLowerCase().trim();
+  const status = String(session?.status ?? "").toLowerCase().trim();
+  return status === "rejected" || role.endsWith("_rejected");
+}
+
+function isActiveSession(session?: { status?: string | null; role?: string | null } | null) {
+  const role = String(session?.role ?? "").toLowerCase().trim();
+  const status = String(session?.status ?? "").toLowerCase().trim();
+  return role === "admin" || status === "active";
+}
+
 function isPublicPath(pathname: string) {
   return (
     pathname === "/login" ||
@@ -60,6 +72,8 @@ export function middleware(request: Request) {
   const parsedSession = readSession(cookieValue);
   const role = String(parsedSession?.role ?? "").toLowerCase() || null;
   const hasPendingSession = isPendingSession(parsedSession);
+  const hasRejectedSession = isRejectedSession(parsedSession);
+  const hasActiveSession = isActiveSession(parsedSession);
   const isAuthed = Boolean(role);
 
   // Root and dashboards should never render for unauthenticated users.
@@ -78,8 +92,18 @@ export function middleware(request: Request) {
     return NextResponse.redirect(url);
   }
 
+  if (isAuthed && hasRejectedSession) {
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
   if (isAuthed && hasPendingSession && pathname !== "/pending-approval") {
     url.pathname = "/pending-approval";
+    return NextResponse.redirect(url);
+  }
+
+  if (isAuthed && !hasActiveSession && isProtected && pathname !== "/pending-approval") {
+    url.pathname = "/login";
     return NextResponse.redirect(url);
   }
 

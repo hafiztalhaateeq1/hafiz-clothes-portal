@@ -39,14 +39,20 @@ function normalizeUserRole(value) {
   if (normalized === "admin") return "admin";
   if (normalized === "management") return "management";
   if (normalized === "management_pending") return "management_pending";
+  if (normalized === "management_rejected") return "management_rejected";
   if (normalized === "wholesale") return "wholesale";
   if (normalized === "wholesale_pending") return "wholesale_pending";
+  if (normalized === "wholesale_rejected") return "wholesale_rejected";
   if (normalized === "retail") return "retail";
   return "";
 }
 
 function isPendingStatus(value) {
   return String(value ?? "").toLowerCase().trim() === "pending";
+}
+
+function isRejectedStatus(value) {
+  return String(value ?? "").toLowerCase().trim() === "rejected";
 }
 
 async function fetchApprovalProfileByPhone(phone) {
@@ -60,7 +66,14 @@ async function fetchApprovalProfileByPhone(phone) {
     .from("profiles")
     .select("id, username, phone, role, status")
     .eq("phone", normalizedPhone)
-    .in("role", ["wholesale_pending", "management_pending", "wholesale", "management"])
+    .in("role", [
+      "wholesale_pending",
+      "management_pending",
+      "wholesale_rejected",
+      "management_rejected",
+      "wholesale",
+      "management",
+    ])
     .limit(1)
     .maybeSingle();
 }
@@ -260,6 +273,8 @@ export async function POST(request) {
 
     if (approvalStatus === "pending") {
       effectiveRole = approvalRole || "wholesale_pending";
+    } else if (approvalStatus === "rejected") {
+      effectiveRole = approvalRole || "wholesale_rejected";
     } else if (client && effectiveRole !== "admin") {
       const inferredBase = inferCustomerRole(client); // retail | wholesale
       const status = String(client?.status ?? "").toLowerCase().trim();
@@ -269,7 +284,12 @@ export async function POST(request) {
         inferredBase === "wholesale" || userType.includes("whole") || userType.includes("regular");
 
       if (isWholesaleAccount) {
-        effectiveRole = status === "pending" ? "wholesale_pending" : "wholesale";
+        effectiveRole =
+          status === "pending"
+            ? "wholesale_pending"
+            : status === "rejected"
+              ? "wholesale_rejected"
+              : "wholesale";
       } else {
         effectiveRole = "retail";
       }
@@ -338,9 +358,13 @@ export async function POST(request) {
       status:
         approvalStatus === "pending"
           ? "pending"
-          : isPendingStatus(client?.status)
-            ? "pending"
-            : "active",
+          : approvalStatus === "rejected"
+            ? "rejected"
+            : isPendingStatus(client?.status)
+              ? "pending"
+              : isRejectedStatus(client?.status)
+                ? "rejected"
+                : "active",
     };
 
     const response = NextResponse.json({
