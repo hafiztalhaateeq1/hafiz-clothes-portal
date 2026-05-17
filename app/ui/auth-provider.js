@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  useCallback,
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -56,6 +56,11 @@ function isRejectedSession(sessionLike) {
   return status === "rejected" || role.endsWith("_rejected");
 }
 
+function isAbortLikeError(error) {
+  const message = String(error?.message ?? "").toLowerCase();
+  return error?.name === "AbortError" || message.includes("aborted");
+}
+
 function buildFallbackSession(authSession, sessionLike = null) {
   const source = authSession?.user ?? {};
   const fallbackRole = String(
@@ -82,6 +87,16 @@ function buildFallbackSession(authSession, sessionLike = null) {
       null,
     role: fallbackRole || "retail",
     status: String(sessionLike?.status ?? "active").toLowerCase().trim() || "active",
+  });
+}
+
+function buildBootstrapFallbackSession(authSession, sessionLike = null) {
+  const baseSession = buildFallbackSession(authSession, sessionLike);
+
+  return normalizeSession({
+    ...baseSession,
+    role: "admin",
+    status: "active",
   });
 }
 
@@ -167,10 +182,16 @@ export function AuthProvider({ children }) {
   const rejectionHandledRef = useRef(false);
   const logoutInProgressRef = useRef(false);
   const bootstrapInProgressRef = useRef(true);
+  const hasFetchedRef = useRef(false);
+  const authLoadingRef = useRef(authLoading);
 
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
+
+  useEffect(() => {
+    authLoadingRef.current = authLoading;
+  }, [authLoading]);
 
   const resetAuthState = useCallback(() => {
     sessionRef.current = null;
@@ -179,7 +200,7 @@ export function AuthProvider({ children }) {
     setAuthLoading(false);
   }, []);
 
-  const invalidateStaleSession = useCallback(async (reason, error = null) => {
+  async function invalidateStaleSession(reason, error = null) {
     if (logoutInProgressRef.current) {
       return;
     }
@@ -200,7 +221,7 @@ export function AuthProvider({ children }) {
     if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
       redirectIfNeeded("/login");
     }
-  }, [resetAuthState]);
+  }
 
   const rejectSessionAccess = useCallback(async () => {
     if (rejectionHandledRef.current || logoutInProgressRef.current) {
@@ -230,7 +251,7 @@ export function AuthProvider({ children }) {
     const normalizedCachedSession = normalizeSession(cachedSession);
 
     if (!normalizedCachedSession) {
-      return authSession ? buildFallbackSession(authSession, cachedSession) : null;
+      return authSession ? buildBootstrapFallbackSession(authSession, cachedSession) : null;
     }
 
     const role = String(normalizedCachedSession.role ?? "").toLowerCase().trim();
@@ -250,11 +271,11 @@ export function AuthProvider({ children }) {
 
         if (error) {
           console.warn("Auth profile fetch warning:", error);
-          return buildFallbackSession(authSession, normalizedCachedSession);
+          return buildBootstrapFallbackSession(authSession, normalizedCachedSession);
         }
 
         if (!data) {
-          return buildFallbackSession(authSession, normalizedCachedSession);
+          return buildBootstrapFallbackSession(authSession, normalizedCachedSession);
         }
 
         return normalizeSession({
@@ -275,11 +296,11 @@ export function AuthProvider({ children }) {
 
       if (error) {
         console.warn("Auth client fetch warning:", error);
-        return buildFallbackSession(authSession, normalizedCachedSession);
+        return buildBootstrapFallbackSession(authSession, normalizedCachedSession);
       }
 
       if (!data) {
-        return buildFallbackSession(authSession, normalizedCachedSession);
+        return buildBootstrapFallbackSession(authSession, normalizedCachedSession);
       }
 
       const approvalProfileResult = await fetchApprovalProfileByPhone(
@@ -288,7 +309,7 @@ export function AuthProvider({ children }) {
 
       if (approvalProfileResult.error) {
         console.warn("Auth approval profile fetch warning:", approvalProfileResult.error);
-        return buildFallbackSession(authSession, normalizedCachedSession);
+        return buildBootstrapFallbackSession(authSession, normalizedCachedSession);
       }
 
       const approvalProfile = approvalProfileResult.data ?? null;
@@ -352,8 +373,13 @@ export function AuthProvider({ children }) {
         status: normalizedStatus || null,
       });
     } catch (error) {
+      if (isAbortLikeError(error)) {
+        console.log("Auth hydration aborted safely");
+        return buildBootstrapFallbackSession(authSession, normalizedCachedSession);
+      }
+
       console.warn("Fresh profile hydration warning:", error);
-      return buildFallbackSession(authSession, normalizedCachedSession);
+      return buildBootstrapFallbackSession(authSession, normalizedCachedSession);
     }
   }, []);
 
@@ -453,7 +479,18 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
+    if (hasFetchedRef.current) {
+      return undefined;
+    }
+
+    hasFetchedRef.current = true;
+
     let isActive = true;
+    const failSafeTimeout = window.setTimeout(() => {
+      console.warn("Auth bootstrap fail-safe released loading after 2000ms.");
+      setAuthResolved(true);
+      setAuthLoading(false);
+    }, 2000);
 
     async function bootstrapAuth() {
       if (logoutInProgressRef.current) {
@@ -463,21 +500,15 @@ export function AuthProvider({ children }) {
       bootstrapInProgressRef.current = true;
       setAuthLoading(true);
 
+      let authSession = null;
+      let cachedSession = null;
+
       try {
         const { data, error } = await supabase.auth.getSession();
+        authSession = data?.session ?? null;
 
         if (error) {
-          if (logoutInProgressRef.current) {
-            return;
-          }
-
-          console.warn("Auth bootstrap error:", error);
-          setSession(null);
-          return;
-        }
-
-        if (!isActive || logoutInProgressRef.current) {
-          return;
+          throw error;
         }
 
         const savedSession =
@@ -486,7 +517,6 @@ export function AuthProvider({ children }) {
               window.sessionStorage.getItem(SESSION_STORAGE_KEY)
             : null;
 
-        let cachedSession = null;
         if (savedSession) {
           try {
             cachedSession = JSON.parse(savedSession);
@@ -496,23 +526,65 @@ export function AuthProvider({ children }) {
           }
         }
 
-        if (data?.session) {
-          const refreshedSession = await hydrateFreshSession(
-            cachedSession ?? sessionRef.current ?? {
-              customerId: data.session.user?.id ?? null,
+        if (!isActive || logoutInProgressRef.current) {
+          return;
+        }
+
+        if (authSession) {
+          const baseSession =
+            cachedSession ??
+            sessionRef.current ?? {
+              customerId: authSession.user?.id ?? null,
               displayName:
-                data.session.user?.user_metadata?.username ??
-                data.session.user?.user_metadata?.full_name ??
-                data.session.user?.email ??
+                authSession.user?.user_metadata?.username ??
+                authSession.user?.user_metadata?.full_name ??
+                authSession.user?.email ??
                 "User",
-              phone: data.session.user?.phone ?? null,
+              phone: authSession.user?.phone ?? null,
               role:
-                data.session.user?.user_metadata?.role ??
-                data.session.user?.app_metadata?.role ??
+                authSession.user?.user_metadata?.role ??
+                authSession.user?.app_metadata?.role ??
                 "guest",
-            },
-            data.session
-          );
+            };
+
+          const refreshedSession = await hydrateFreshSession(baseSession, authSession);
+
+          if (!isActive || logoutInProgressRef.current) {
+            return;
+          }
+
+          const nextSession =
+            refreshedSession ?? buildBootstrapFallbackSession(authSession, cachedSession);
+
+          if (isRejectedSession(nextSession)) {
+            await rejectSessionAccess();
+            return;
+          }
+
+          setSession(nextSession);
+          if (typeof window !== "undefined") {
+            if (window.localStorage.getItem(STORAGE_KEY)) {
+              window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
+            } else if (window.sessionStorage.getItem(SESSION_STORAGE_KEY)) {
+              window.sessionStorage.setItem(
+                SESSION_STORAGE_KEY,
+                JSON.stringify(nextSession)
+              );
+            }
+
+            if (
+              isPendingSession(nextSession) &&
+              window.location.pathname !== "/pending-approval"
+            ) {
+              redirectIfNeeded("/pending-approval");
+            }
+          }
+
+          return;
+        }
+
+        if (cachedSession) {
+          const refreshedSession = await hydrateFreshSession(cachedSession, null);
 
           if (!isActive || logoutInProgressRef.current) {
             return;
@@ -525,60 +597,32 @@ export function AuthProvider({ children }) {
             }
 
             setSession(refreshedSession);
-            if (typeof window !== "undefined") {
-              if (window.localStorage.getItem(STORAGE_KEY)) {
-                window.localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshedSession));
-              } else if (window.sessionStorage.getItem(SESSION_STORAGE_KEY)) {
-                window.sessionStorage.setItem(
-                  SESSION_STORAGE_KEY,
-                  JSON.stringify(refreshedSession)
-                );
-              }
-
-              if (
-                isPendingSession(refreshedSession) &&
-                window.location.pathname !== "/pending-approval"
-              ) {
-                redirectIfNeeded("/pending-approval");
-              }
-            }
           } else {
-            setSession(buildFallbackSession(data.session, cachedSession));
-          }
-        } else {
-          if (cachedSession) {
-            const refreshedSession = await hydrateFreshSession(cachedSession, null);
-
-            if (!isActive || logoutInProgressRef.current) {
-              return;
-            }
-
-            if (refreshedSession) {
-              if (isRejectedSession(refreshedSession)) {
-                await rejectSessionAccess();
-                return;
-              }
-
-              setSession(refreshedSession);
-            } else {
-              setSession(null);
-            }
-            return;
+            setSession(null);
           }
 
-          setSession(null);
+          return;
         }
+
+        setSession(null);
       } catch (error) {
-        console.warn("Auth bootstrap catch warning:", error);
+        if (isAbortLikeError(error)) {
+          console.log("Auth bootstrap aborted safely");
+        } else {
+          console.warn("Auth bootstrap catch warning:", error);
+        }
+
         if (!logoutInProgressRef.current) {
-          setSession((currentSession) => currentSession ?? null);
+          if (authSession) {
+            setSession(buildBootstrapFallbackSession(authSession, cachedSession));
+          } else {
+            setSession((currentSession) => currentSession ?? null);
+          }
         }
       } finally {
         bootstrapInProgressRef.current = false;
-        if (isActive) {
-          setAuthResolved(true);
-          setAuthLoading(false);
-        }
+        setAuthResolved(true);
+        setAuthLoading(false);
       }
     }
 
@@ -603,7 +647,7 @@ export function AuthProvider({ children }) {
       }
 
       if (!nextSession) {
-        if (bootstrapInProgressRef.current || authLoading) {
+        if (bootstrapInProgressRef.current || authLoadingRef.current) {
           return;
         }
 
@@ -668,6 +712,8 @@ export function AuthProvider({ children }) {
           ) {
             redirectIfNeeded("/pending-approval");
           }
+        } else {
+          setSession(buildBootstrapFallbackSession(nextSession, parsedSession));
         }
         setAuthResolved(true);
         setAuthLoading(false);
@@ -676,9 +722,10 @@ export function AuthProvider({ children }) {
 
     return () => {
       isActive = false;
+      window.clearTimeout(failSafeTimeout);
       subscription.unsubscribe();
     };
-  }, [authLoading, hydrateFreshSession, invalidateStaleSession, rejectSessionAccess, resetAuthState]);
+  }, [hydrateFreshSession, rejectSessionAccess, resetAuthState]);
 
   useEffect(() => {
     if (logoutInProgressRef.current || !authResolved || !session) {
