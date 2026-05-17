@@ -153,6 +153,45 @@ function clearBrowserState() {
   }
 }
 
+function clearAuthCookiesOnClient() {
+  if (typeof document === "undefined" || typeof window === "undefined") {
+    return;
+  }
+
+  const expiredAt = "Thu, 01 Jan 1970 00:00:00 GMT";
+  const cookieNames = new Set(["hch_session"]);
+
+  document.cookie.split(";").forEach((cookie) => {
+    const cookieName = cookie.split("=")[0]?.trim();
+    if (!cookieName) {
+      return;
+    }
+
+    if (
+      cookieName === "hch_session" ||
+      cookieName.startsWith("sb-") ||
+      cookieName.includes("supabase") ||
+      cookieName.includes("auth-token")
+    ) {
+      cookieNames.add(cookieName);
+    }
+  });
+
+  cookieNames.forEach((cookieName) => {
+    const cookieFragments = [
+      `${cookieName}=`,
+      `expires=${expiredAt}`,
+      "max-age=0",
+      "path=/",
+      "SameSite=Lax",
+      "Secure",
+    ];
+
+    document.cookie = cookieFragments.join("; ");
+    document.cookie = `${cookieFragments.join("; ")}; domain=${window.location.hostname}`;
+  });
+}
+
 export function AuthProvider({ children }) {
   const pathname = usePathname();
   const [session, setSession] = useState(() => {
@@ -767,6 +806,8 @@ export function AuthProvider({ children }) {
     } catch (error) {
       console.error("Supabase signOut error:", error);
     } finally {
+      clearAuthCookiesOnClient();
+
       // Best-effort: clear server-side auth cookie so middleware can stop treating the user as signed in.
       await fetch("/api/logout", {
         method: "POST",
@@ -775,6 +816,8 @@ export function AuthProvider({ children }) {
       }).catch(() => {});
 
       if (typeof window !== "undefined") {
+        clearAuthCookiesOnClient();
+
         try {
           const registrations = await navigator.serviceWorker?.getRegistrations?.();
           await Promise.all((registrations ?? []).map((registration) => registration.unregister()));
