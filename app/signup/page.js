@@ -12,7 +12,7 @@ import {
   Store,
   UserRound,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/app/ui/auth-provider";
 
@@ -86,11 +86,12 @@ function validateConfirmPassword(password, confirm) {
   return "";
 }
 
+const SIGNUP_ROLES = new Set(["retail", "wholesale", "management"]);
+
 export default function SignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { primeSession } = useAuth();
-  const [step, setStep] = useState("select"); // select | form
-  const [selectedRole, setSelectedRole] = useState(null); // retail | wholesale | management
   const [form, setForm] = useState({
     fullName: "",
     username: "",
@@ -114,6 +115,9 @@ export default function SignupPage() {
     businessName: "",
   });
 
+  const requestedRole = String(searchParams.get("role") ?? "").toLowerCase().trim();
+  const selectedRole = SIGNUP_ROLES.has(requestedRole) ? requestedRole : null;
+  const step = selectedRole ? "form" : "select";
 
 
   function passwordStrength(value) {
@@ -188,9 +192,8 @@ export default function SignupPage() {
 
   function handleRoleSelect(event, role) {
     event.preventDefault();
-    setSelectedRole(role);
-    setStep("form");
     setErrorMessage("");
+    router.replace(`/signup?role=${encodeURIComponent(role)}`, { scroll: false });
   }
 
   async function handleSubmit(event) {
@@ -660,13 +663,12 @@ export default function SignupPage() {
                   </button>
 
                   <div className="flex items-center justify-between pt-2 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setStep("select");
-                        setSelectedRole(null);
-                        setErrorMessage("");
-                      }}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          router.replace("/signup", { scroll: false });
+                          setErrorMessage("");
+                        }}
                       className="rounded-lg px-2 py-1 font-semibold text-gray-600 transition hover:text-gray-900 hover:underline focus:outline-none focus:ring-2 focus:ring-[#800000]/25"
                     >
                       Go Back
