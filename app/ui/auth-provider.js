@@ -81,16 +81,23 @@ export function AuthProvider({ children }) {
     }
   });
   const [authResolved, setAuthResolved] = useState(false);
+  const [authLoading, setAuthLoading] = useState(true);
   const sessionRef = useRef(session);
 
   useEffect(() => {
     sessionRef.current = session;
   }, [session]);
 
-  const invalidateStaleSession = useCallback(async (reason, error = null) => {
-    console.error("Invalidating stale session:", reason, error);
+  const resetAuthState = useCallback(() => {
+    sessionRef.current = null;
     setSession(null);
     setAuthResolved(true);
+    setAuthLoading(false);
+  }, []);
+
+  const invalidateStaleSession = useCallback(async (reason, error = null) => {
+    console.error("Invalidating stale session:", reason, error);
+    resetAuthState();
 
     clearStoredSession();
 
@@ -105,7 +112,7 @@ export function AuthProvider({ children }) {
     if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
       redirectIfNeeded("/login");
     }
-  }, []);
+  }, [resetAuthState]);
 
   const hydrateFreshSession = useCallback(async (cachedSession) => {
     const normalizedCachedSession = normalizeSession(cachedSession);
@@ -250,6 +257,7 @@ export function AuthProvider({ children }) {
 
     setSession(normalizedSession);
     setAuthResolved(true);
+    setAuthLoading(false);
 
     if (typeof window !== "undefined" && normalizedSession) {
       if (rememberMe) {
@@ -284,6 +292,8 @@ export function AuthProvider({ children }) {
     let isActive = true;
 
     async function bootstrapAuth() {
+      setAuthLoading(true);
+
       try {
         const { data, error } = await supabase.auth.getSession();
 
@@ -336,6 +346,7 @@ export function AuthProvider({ children }) {
 
           if (refreshedSession) {
             setSession(refreshedSession);
+            setAuthLoading(false);
             if (typeof window !== "undefined") {
               if (window.localStorage.getItem(STORAGE_KEY)) {
                 window.localStorage.setItem(STORAGE_KEY, JSON.stringify(refreshedSession));
@@ -364,15 +375,18 @@ export function AuthProvider({ children }) {
 
             if (refreshedSession) {
               setSession(refreshedSession);
+              setAuthLoading(false);
             }
             return;
           }
 
           setSession(null);
+          setAuthLoading(false);
         }
       } finally {
         if (isActive) {
           setAuthResolved(true);
+          setAuthLoading(false);
         }
       }
     }
@@ -382,10 +396,8 @@ export function AuthProvider({ children }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(async (event, nextSession) => {
-      if (event === "SIGNED_OUT") {
-        setSession(null);
-        setAuthResolved(true);
-
+      if (event === "SIGNED_OUT" || !nextSession) {
+        resetAuthState();
         clearStoredSession();
         fetch("/api/logout", { method: "POST" }).catch(() => {});
         if (typeof window !== "undefined" && !isPublicPath(window.location.pathname)) {
@@ -406,6 +418,8 @@ export function AuthProvider({ children }) {
         nextSession &&
         typeof window !== "undefined"
       ) {
+        setAuthLoading(true);
+
         const savedSession =
           window.localStorage.getItem(STORAGE_KEY) ??
           window.sessionStorage.getItem(SESSION_STORAGE_KEY);
@@ -450,6 +464,7 @@ export function AuthProvider({ children }) {
           }
         }
         setAuthResolved(true);
+        setAuthLoading(false);
       }
     });
 
@@ -457,27 +472,28 @@ export function AuthProvider({ children }) {
       isActive = false;
       subscription.unsubscribe();
     };
-  }, [hydrateFreshSession, invalidateStaleSession]);
+  }, [hydrateFreshSession, invalidateStaleSession, resetAuthState]);
 
   const logout = useCallback(async () => {
-    setSession(null);
-
-    clearStoredSession();
-
+    setAuthLoading(true);
     try {
       await supabase.auth.signOut();
     } catch (error) {
       console.error("Supabase signOut error:", error);
+    } finally {
+      resetAuthState();
+      clearStoredSession();
+
+      // Best-effort: clear server-side auth cookie so middleware can stop treating the user as signed in.
+      fetch("/api/logout", { method: "POST" }).catch(() => {});
+
+      redirectIfNeeded("/login");
     }
-
-    // Best-effort: clear server-side auth cookie so middleware can stop treating the user as signed in.
-    fetch("/api/logout", { method: "POST" }).catch(() => {});
-
-    redirectIfNeeded("/login");
-  }, []);
+  }, [resetAuthState]);
 
   const value = useMemo(
     () => ({
+      authLoading,
       authResolved,
       hasMounted: true,
       isAuthenticated: Boolean(session && session.role !== "guest"),
@@ -486,7 +502,7 @@ export function AuthProvider({ children }) {
       primeSession,
       session,
     }),
-    [authResolved, logout, primeSession, session]
+    [authLoading, authResolved, logout, primeSession, session]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

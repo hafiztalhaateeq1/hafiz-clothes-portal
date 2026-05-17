@@ -46,7 +46,7 @@ function ShellStatusScreen({ languageClass, label }) {
 
 export function PortalShell({ children }) {
   const pathname = usePathname();
-  const { authResolved, isAuthenticated, logout, session } = useAuth();
+  const { authLoading, authResolved, isAuthenticated, logout, session } = useAuth();
   const { language, setLanguage, t, languages } = useLanguage();
   const [mounted, setMounted] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -70,6 +70,11 @@ export function PortalShell({ children }) {
     }
 
     if (!isAuthenticated || session?.role === "guest") {
+      if (pathname === "/login") {
+        return;
+      }
+
+      window.location.href = "/login";
       return;
     }
 
@@ -135,12 +140,12 @@ export function PortalShell({ children }) {
     return <div className={`portal-shell-root ${languageClass}`}>{children}</div>;
   }
 
-  if (!authResolved) {
+  if (authLoading || !authResolved) {
     return <ShellStatusScreen languageClass={languageClass} label="Loading..." />;
   }
 
   if (!isAuthenticated || session?.role === "guest") {
-    return <ShellStatusScreen languageClass={languageClass} label="Loading..." />;
+    return <ShellStatusScreen languageClass={languageClass} label="Redirecting..." />;
   }
 
   if (isPendingUser(session)) {
