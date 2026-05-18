@@ -273,7 +273,7 @@ export default function LoginPage() {
         HCH
       </div>
 
-      <div className="relative min-h-screen px-4 pt-8 pb-10 sm:px-6 lg:px-8">
+      <div className="relative min-h-screen px-4 pb-12 pt-8 sm:px-6 lg:px-8">
         <div className="mx-auto w-full max-w-6xl">
           <div className="relative lg:flex lg:items-start lg:justify-between">
             <header className="relative z-10 flex justify-center pt-20 lg:flex-none lg:justify-start lg:pt-4">
@@ -547,6 +547,8 @@ export default function LoginPage() {
                 </div>
               </div>
             </div>
+
+            <SocialLinksRow className="mx-auto mb-8 mt-6 lg:hidden" variant="auth" />
 
           </div>
         </div>

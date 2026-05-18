@@ -51,7 +51,8 @@ body {
 .auth-surface {
   position: relative;
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: #fdf8f3;
 }
 
